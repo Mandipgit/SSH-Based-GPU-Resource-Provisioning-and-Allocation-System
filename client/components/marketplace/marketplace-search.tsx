@@ -12,7 +12,7 @@ interface MarketplaceSearchProps {
 export function MarketplaceSearch({
   value,
   onChange,
-  placeholder = "Search GPUs by model (e.g. RTX 4090, A6000)...",
+  placeholder = "Search GPUs...",
 }: MarketplaceSearchProps) {
   return (
     <div className="relative w-full">
@@ -20,20 +20,20 @@ export function MarketplaceSearch({
         Search GPUs
       </label>
       <div className="relative flex items-center">
-        <Search className="absolute left-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Search className="absolute left-3.5 h-4 w-4 text-[#7a7a9a] pointer-events-none" />
         <input
           id="marketplace-gpu-search"
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="h-10 w-full rounded-xl bg-card pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground border border-input shadow-xs outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="h-[44px] w-full rounded-[10px] bg-[#10101e] pl-10 pr-10 text-sm font-inter text-[#f0f0f8] placeholder:text-[#4a4a6a] border border-white/[0.07] shadow-xs outline-none transition-all focus:border-[#7c3aed]/50 focus:ring-3 focus:ring-[#7c3aed]/12"
         />
         {value && (
           <button
             type="button"
             onClick={() => onChange("")}
-            className="absolute right-3 p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+            className="absolute right-3 p-1 text-[#7a7a9a] hover:text-[#f0f0f8] rounded transition-colors cursor-pointer"
             aria-label="Clear search"
           >
             <X className="h-4 w-4" />
@@ -43,3 +43,4 @@ export function MarketplaceSearch({
     </div>
   );
 }
+export default MarketplaceSearch;

@@ -1,7 +1,5 @@
 import React from "react";
-import { ServerOff, RotateCcw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Cpu, RotateCcw } from "lucide-react";
 
 interface MarketplaceEmptyProps {
   hasActiveFilters: boolean;
@@ -13,33 +11,32 @@ export function MarketplaceEmpty({
   onClearFilters,
 }: MarketplaceEmptyProps) {
   return (
-    <Card className="flex flex-col items-center justify-center min-h-[360px] rounded-2xl border border-border bg-card p-8 text-center shadow-corporate">
-      <CardContent className="flex flex-col items-center justify-center p-0">
-        <div className="p-4 rounded-2xl bg-secondary/80 border border-border/80 text-muted-foreground mb-4">
-          <ServerOff className="w-8 h-8" />
-        </div>
+    <div className="flex flex-col items-center justify-center min-h-[300px] rounded-[14px] bg-[#10101e] border border-white/[0.07] p-8 text-center">
+      <div className="w-12 h-12 rounded-[12px] bg-[#16162a] border border-white/[0.07] flex items-center justify-center text-[#7a7a9a] mb-4">
+        <Cpu className="w-6 h-6" />
+      </div>
 
-        <h3 className="text-lg font-bold text-foreground mb-2">
-          {hasActiveFilters ? "No GPUs found" : "No GPUs available"}
-        </h3>
+      <h3 className="font-outfit text-lg font-semibold text-[#f0f0f8] mb-1.5">
+        No GPUs found
+      </h3>
 
-        <p className="text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
-          {hasActiveFilters
-            ? "There are no GPUs matching your current search or filter criteria. Try broadening your parameters."
-            : "There are currently no GPU compute instances registered on the network. Please check back later."}
-        </p>
+      <p className="font-inter text-xs text-[#7a7a9a] max-w-sm mb-5 leading-relaxed">
+        {hasActiveFilters
+          ? "Try adjusting your filters or search for another GPU."
+          : "There are currently no GPUs registered on the network."}
+      </p>
 
-        {hasActiveFilters && (
-          <Button
-            variant="outline"
-            onClick={onClearFilters}
-            className="gap-2 font-medium"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Clear Filters
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+      {hasActiveFilters && (
+        <button
+          type="button"
+          onClick={onClearFilters}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#7c3aed]/10 border border-[#7c3aed]/25 text-[#9f67ff] hover:bg-[#7c3aed]/20 text-xs font-inter font-medium transition-colors cursor-pointer"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Clear Filters</span>
+        </button>
+      )}
+    </div>
   );
 }
+export default MarketplaceEmpty;

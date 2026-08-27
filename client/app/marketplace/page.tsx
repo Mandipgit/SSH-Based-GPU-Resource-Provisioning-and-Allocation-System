@@ -16,8 +16,8 @@ import { MarketplaceError } from "@/components/marketplace/marketplace-error";
 import { getGPUs } from "@/services/api";
 import { MarketplaceGPU, GpuFilters, SortOption } from "@/types/gpu";
 import { useAuthStore } from "@/stores/auth-store";
-import { X, SlidersHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SlidersHorizontal, LayoutGrid, List, X } from "lucide-react";
+import "@/components/marketplace/marketplace.css";
 
 function useIsMounted() {
   return useSyncExternalStore(
@@ -47,6 +47,9 @@ function MarketplaceContent() {
   const [gpus, setGpus] = useState<MarketplaceGPU[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // View Mode: Grid (default) vs List
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Mobile Filter Sheet State
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState<boolean>(false);
@@ -139,7 +142,7 @@ function MarketplaceContent() {
         const errorMessage =
           err instanceof Error
             ? err.message
-            : "Unable to communicate with the compute network.";
+            : "Unable to retrieve GPU compute nodes.";
         setError(errorMessage);
         setIsLoading(false);
       });
@@ -159,7 +162,7 @@ function MarketplaceContent() {
           const errorMessage =
             err instanceof Error
               ? err.message
-              : "Unable to communicate with the compute network.";
+              : "Unable to retrieve GPU compute nodes.";
           setError(errorMessage);
           setIsLoading(false);
         }
@@ -169,6 +172,12 @@ function MarketplaceContent() {
       isMountedFlag = false;
     };
   }, []);
+
+  // Compute maximum price in catalog for slider bounds
+  const maxCatalogPrice = useMemo(() => {
+    if (gpus.length === 0) return 500;
+    return Math.max(...gpus.map((g) => g.pricePerHour), 300);
+  }, [gpus]);
 
   // Derive dynamic Model counts from inventory
   const availableModels: ModelCount[] = useMemo(() => {
@@ -196,7 +205,7 @@ function MarketplaceContent() {
   const filteredAndSortedGpus = useMemo(() => {
     let result = [...gpus];
 
-    // 1. Search Query (Model / Name)
+    // 1. Search Query (Model / Name / Location)
     if (filters.search.trim()) {
       const q = filters.search.toLowerCase().trim();
       result = result.filter(
@@ -261,7 +270,7 @@ function MarketplaceContent() {
     );
   }, [filters]);
 
-  // Active filter count for mobile button badge
+  // Active filter count for button badge
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.search.trim()) count++;
@@ -273,171 +282,211 @@ function MarketplaceContent() {
     return count;
   }, [filters]);
 
+  // Result count formatted text
+  const resultCountText = useMemo(() => {
+    const len = filteredAndSortedGpus.length;
+    if (len === 0) return "No GPUs available";
+    if (len === 1) return "1 GPU available";
+    return `${len} GPUs available`;
+  }, [filteredAndSortedGpus.length]);
+
   // Core Marketplace Body
   const marketplaceBody = (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full pb-12">
-      {/* Header */}
+    <div className="flex flex-col gap-5 max-w-[1240px] mx-auto w-full pb-16">
+      {/* 1. Header */}
       <MarketplaceHeader />
 
-      {/* Search, Sort, and Mobile Filter Control Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="flex-1">
-          <MarketplaceSearch
-            value={filters.search}
-            onChange={(search) => handleFilterChange({ ...filters, search })}
-          />
+      {/* 2. Search + Marketplace Controls Bar */}
+      <div className="flex flex-col gap-3">
+        {/* Top Controls Row */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Search Bar */}
+          <div className="flex-1">
+            <MarketplaceSearch
+              value={filters.search}
+              onChange={(search) => handleFilterChange({ ...filters, search })}
+            />
+          </div>
+
+          {/* Controls Group */}
+          <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
+            {/* Sort Select */}
+            <GpuSort value={sort} onChange={handleSortChange} />
+
+            {/* Grid / List Segmented Toggle */}
+            <div className="flex items-center h-[44px] bg-[#10101e] border border-white/[0.07] rounded-[10px] p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                aria-label="Grid view"
+                className={`h-full px-2.5 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-[#7c3aed] text-white shadow-xs"
+                    : "bg-transparent text-[#7a7a9a] hover:text-[#f0f0f8]"
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                aria-label="List view"
+                className={`h-full px-2.5 rounded-[7px] flex items-center justify-center transition-colors cursor-pointer ${
+                  viewMode === "list"
+                    ? "bg-[#7c3aed] text-white shadow-xs"
+                    : "bg-transparent text-[#7a7a9a] hover:text-[#f0f0f8]"
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Filters Button (Mobile Trigger) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileFiltersOpen(true)}
+              aria-label="Open filter sidebar"
+              className="lg:hidden h-[44px] px-3.5 rounded-[10px] bg-[#10101e] border border-white/[0.07] text-[#f0f0f8] hover:border-white/15 text-xs font-inter font-medium flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-[#9f67ff]" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-[#7c3aed] text-[10px] font-bold flex items-center justify-center text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
-          {/* Mobile Filter Sheet Trigger Button */}
-          <Button
-            variant="outline"
-            size="md"
-            onPress={() => setIsMobileFiltersOpen(true)}
-            className="lg:hidden flex items-center gap-2"
-            aria-label="Open filter options"
-          >
-            <SlidersHorizontal className="w-4 h-4 text-primary" />
-            <span>Filters</span>
-            {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full bg-primary text-[11px] font-bold flex items-center justify-center text-primary-foreground">
-                {activeFilterCount}
+        {/* Active Filter Chips / Tags */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="font-inter text-xs text-[#7a7a9a] font-medium mr-1">
+              Active:
+            </span>
+
+            {filters.search.trim() && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-inter bg-[#16162a] text-[#f0f0f8] border border-white/[0.07]">
+                Search: &quot;{filters.search}&quot;
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, search: "" })}
+                  className="text-[#7a7a9a] hover:text-white transition-colors cursor-pointer"
+                  aria-label="Remove search filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </span>
             )}
-          </Button>
 
-          <GpuSort value={sort} onChange={handleSortChange} />
-        </div>
+            {filters.models.map((model) => (
+              <span
+                key={model}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-inter bg-[#7c3aed]/15 border border-[#7c3aed]/30 text-[#c4a9ff]"
+              >
+                {model}
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleFilterChange({
+                      ...filters,
+                      models: filters.models.filter((m) => m !== model),
+                    })
+                  }
+                  className="text-[#c4a9ff] hover:text-white transition-colors cursor-pointer"
+                  aria-label={`Remove ${model} filter`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+
+            {filters.minVram !== null && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-inter bg-[#16162a] text-[#f0f0f8] border border-white/[0.07]">
+                ≥ {filters.minVram} GB VRAM
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, minVram: null })}
+                  className="text-[#7a7a9a] hover:text-white transition-colors cursor-pointer"
+                  aria-label="Remove VRAM filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {(filters.minPrice !== null || filters.maxPrice !== null) && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-inter bg-[#16162a] text-[#f0f0f8] border border-white/[0.07]">
+                NPR {filters.minPrice ?? 0} - {filters.maxPrice !== null ? `NPR ${filters.maxPrice}` : "Max"}
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleFilterChange({
+                      ...filters,
+                      minPrice: null,
+                      maxPrice: null,
+                    })
+                  }
+                  className="text-[#7a7a9a] hover:text-white transition-colors cursor-pointer"
+                  aria-label="Remove price filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {filters.locations.map((loc) => (
+              <span
+                key={loc}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-inter bg-[#16162a] text-[#f0f0f8] border border-white/[0.07]"
+              >
+                {loc}
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleFilterChange({
+                      ...filters,
+                      locations: filters.locations.filter((l) => l !== loc),
+                    })
+                  }
+                  className="text-[#7a7a9a] hover:text-white transition-colors cursor-pointer"
+                  aria-label={`Remove ${loc} filter`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+
+            {filters.availableOnly && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-inter bg-[#22c55e]/15 border border-[#22c55e]/30 text-[#4ade80]">
+                Available Only
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, availableOnly: false })}
+                  className="text-[#4ade80] hover:text-white transition-colors cursor-pointer"
+                  aria-label="Remove available only filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="font-inter text-xs text-[#9f67ff] hover:text-white font-medium ml-1 transition-colors cursor-pointer"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Active Filter Chips / Pills */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs text-muted-foreground font-semibold mr-1">
-            Active filters:
-          </span>
-
-          {filters.search.trim() && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border">
-              Search: &quot;{filters.search}&quot;
-              <button
-                type="button"
-                onClick={() => handleFilterChange({ ...filters, search: "" })}
-                className="hover:text-destructive transition-colors cursor-pointer"
-                aria-label="Remove search filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-
-          {filters.models.map((model) => (
-            <span
-              key={model}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 border border-primary/30 text-primary"
-            >
-              {model}
-              <button
-                type="button"
-                onClick={() =>
-                  handleFilterChange({
-                    ...filters,
-                    models: filters.models.filter((m) => m !== model),
-                  })
-                }
-                className="hover:text-foreground transition-colors cursor-pointer"
-                aria-label={`Remove ${model} filter`}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-
-          {filters.minVram !== null && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border">
-              ≥ {filters.minVram} GB VRAM
-              <button
-                type="button"
-                onClick={() => handleFilterChange({ ...filters, minVram: null })}
-                className="hover:text-destructive transition-colors cursor-pointer"
-                aria-label="Remove VRAM filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-
-          {(filters.minPrice !== null || filters.maxPrice !== null) && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border">
-              NPR {filters.minPrice ?? 0} - {filters.maxPrice !== null ? `NPR ${filters.maxPrice}` : "Any"}
-              <button
-                type="button"
-                onClick={() =>
-                  handleFilterChange({
-                    ...filters,
-                    minPrice: null,
-                    maxPrice: null,
-                  })
-                }
-                className="hover:text-destructive transition-colors cursor-pointer"
-                aria-label="Remove price filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-
-          {filters.locations.map((loc) => (
-            <span
-              key={loc}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border"
-            >
-              {loc}
-              <button
-                type="button"
-                onClick={() =>
-                  handleFilterChange({
-                    ...filters,
-                    locations: filters.locations.filter((l) => l !== loc),
-                  })
-                }
-                className="hover:text-destructive transition-colors cursor-pointer"
-                aria-label={`Remove ${loc} filter`}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-
-          {filters.availableOnly && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-              Available Only
-              <button
-                type="button"
-                onClick={() => handleFilterChange({ ...filters, availableOnly: false })}
-                className="hover:text-foreground transition-colors cursor-pointer"
-                aria-label="Remove available only filter"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-
-          <Button
-            variant="link"
-            size="xs"
-            onPress={handleResetFilters}
-            className="text-xs text-primary font-semibold ml-1 p-0 h-auto"
-          >
-            Clear all
-          </Button>
-        </div>
-      )}
-
-      {/* Main Content Layout: Sidebar + Listings Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start mt-2">
-        {/* Desktop Left Sidebar */}
-        <aside className="hidden lg:block lg:col-span-1 sticky top-24">
+      {/* 3. Main Content Layout: Sidebar + Listings */}
+      <div className="flex flex-col lg:flex-row gap-7 items-start mt-1">
+        {/* Desktop Left Sidebar (240px width) */}
+        <aside className="hidden lg:block shrink-0 w-[240px] sticky top-24">
           <GpuFiltersPanel
             filters={filters}
             onChange={handleFilterChange}
@@ -445,24 +494,29 @@ function MarketplaceContent() {
             availableModels={availableModels}
             availableLocations={availableLocations}
             hasActiveFilters={hasActiveFilters}
+            maxCatalogPrice={maxCatalogPrice}
           />
         </aside>
 
         {/* Right Listings Section */}
-        <section className="lg:col-span-3 flex flex-col gap-4">
+        <section className="flex-1 min-w-0 flex flex-col gap-3.5 w-full">
           {/* Results Count Header */}
           {!isLoading && !error && (
-            <div className="flex items-center justify-between text-xs text-muted-foreground pb-1">
-              <span className="font-semibold text-foreground">
-                {filteredAndSortedGpus.length}{" "}
-                {filteredAndSortedGpus.length === 1 ? "GPU" : "GPUs"} available
-              </span>
+            <div className="flex items-center justify-between pb-1">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-outfit text-sm font-semibold text-[#f0f0f8]">
+                  {filteredAndSortedGpus.length}
+                </span>
+                <span className="font-inter text-xs text-[#7a7a9a]">
+                  {filteredAndSortedGpus.length === 1 ? "GPU available" : "GPUs available"}
+                </span>
+              </div>
             </div>
           )}
 
           {/* State 1: Loading Skeleton */}
           {isLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5 w-full">
               {Array.from({ length: 6 }).map((_, idx) => (
                 <GpuCardSkeleton key={idx} />
               ))}
@@ -482,31 +536,32 @@ function MarketplaceContent() {
             />
           )}
 
-          {/* State 4: Active GPU Grid */}
+          {/* State 4: Active GPU Grid / List */}
           {!isLoading && !error && filteredAndSortedGpus.length > 0 && (
-            <GpuGrid gpus={filteredAndSortedGpus} />
+            <GpuGrid gpus={filteredAndSortedGpus} viewMode={viewMode} />
           )}
         </section>
       </div>
 
       {/* Mobile Filter Drawer / Modal */}
       {isMobileFiltersOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-border bg-card p-5 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.07] bg-[#10101e] p-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-white/[0.07] mb-4">
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-base text-foreground">Filter GPUs</h3>
+                <SlidersHorizontal className="w-4 h-4 text-[#9f67ff]" />
+                <h3 className="font-outfit font-bold text-sm uppercase tracking-wider text-[#f0f0f8]">
+                  Filter GPUs
+                </h3>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                isIconOnly
-                onPress={() => setIsMobileFiltersOpen(false)}
-                aria-label="Close filter options"
+              <button
+                type="button"
+                onClick={() => setIsMobileFiltersOpen(false)}
+                aria-label="Close filters"
+                className="p-1 rounded-lg text-[#7a7a9a] hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
-              </Button>
+              </button>
             </div>
 
             <GpuFiltersPanel
@@ -516,26 +571,27 @@ function MarketplaceContent() {
               availableModels={availableModels}
               availableLocations={availableLocations}
               hasActiveFilters={hasActiveFilters}
-              className="border-0 p-0 bg-transparent shadow-none"
+              maxCatalogPrice={maxCatalogPrice}
+              className="border-0 p-0 bg-transparent shadow-none w-full"
             />
 
-            <div className="mt-6 pt-4 border-t border-border flex gap-3">
+            <div className="mt-6 pt-4 border-t border-white/[0.07] flex gap-3">
               {hasActiveFilters && (
-                <Button
-                  variant="tertiary"
-                  onPress={handleResetFilters}
-                  className="flex-1 font-semibold"
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="flex-1 py-2.5 px-4 rounded-[8px] bg-[#16162a] text-[#7a7a9a] hover:text-white border border-white/[0.07] text-xs font-inter font-medium transition-colors"
                 >
                   Reset
-                </Button>
+                </button>
               )}
-              <Button
-                variant="primary"
-                onPress={() => setIsMobileFiltersOpen(false)}
-                className="flex-1 font-semibold"
+              <button
+                type="button"
+                onClick={() => setIsMobileFiltersOpen(false)}
+                className="flex-1 py-2.5 px-4 rounded-[8px] bg-[#7c3aed] text-white hover:bg-[#9f67ff] text-xs font-inter font-semibold transition-colors shadow-sm"
               >
-                Show Results
-              </Button>
+                Show Results ({filteredAndSortedGpus.length})
+              </button>
             </div>
           </div>
         </div>
@@ -550,9 +606,9 @@ function MarketplaceContent() {
 
   // Public / Guest Mode: Render with Website Navbar and Footer
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-background text-foreground">
+    <div className="marketplace-page-wrapper flex flex-col font-sans">
       <Navbar />
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-10 py-8">
+      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-10 pt-24 sm:pt-28 pb-12">
         {marketplaceBody}
       </main>
       <Footer />
@@ -564,10 +620,12 @@ export default function MarketplacePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">
+        <div className="min-h-screen bg-[#080810] flex items-center justify-center text-[#7a7a9a]">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            <p className="text-sm font-medium">Loading GPU Marketplace...</p>
+            <div className="w-8 h-8 rounded-full border-2 border-[#7c3aed] border-t-transparent animate-spin" />
+            <p className="font-inter text-xs font-medium text-[#7a7a9a]">
+              Loading GPU Marketplace...
+            </p>
           </div>
         </div>
       }

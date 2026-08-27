@@ -4,14 +4,26 @@ import { GpuCard } from "./gpu-card";
 
 interface GpuGridProps {
   gpus: MarketplaceGPU[];
+  viewMode?: "grid" | "list";
 }
 
-export function GpuGrid({ gpus }: GpuGridProps) {
+export function GpuGrid({ gpus, viewMode = "grid" }: GpuGridProps) {
+  if (viewMode === "list") {
+    return (
+      <div className="flex flex-col gap-3.5 w-full">
+        {gpus.map((gpu) => (
+          <GpuCard key={gpu.id} gpu={gpu} viewMode="list" />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5 w-full">
       {gpus.map((gpu) => (
-        <GpuCard key={gpu.id} gpu={gpu} />
+        <GpuCard key={gpu.id} gpu={gpu} viewMode="grid" />
       ))}
     </div>
   );
 }
+export default GpuGrid;

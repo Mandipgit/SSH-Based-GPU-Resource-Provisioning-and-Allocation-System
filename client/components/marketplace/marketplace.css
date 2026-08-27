@@ -1,0 +1,202 @@
+/* Marketplace Specific Styles & Theme Tokens */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap');
+
+:root {
+  --mp-bg: #080810;
+  --mp-card: #10101e;
+  --mp-surface-2: #16162a;
+  --mp-border: rgba(255, 255, 255, 0.07);
+  --mp-border-hover: rgba(124, 58, 237, 0.4);
+  --mp-primary: #7c3aed;
+  --mp-primary-light: #9f67ff;
+  --mp-primary-glow: rgba(124, 58, 237, 0.25);
+  --mp-text-primary: #f0f0f8;
+  --mp-text-muted: #7a7a9a;
+  --mp-text-dim: #4a4a6a;
+  --mp-available: #22c55e;
+  --mp-available-light: #4ade80;
+  --mp-warning: #f59e0b;
+}
+
+.font-outfit {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.font-inter {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Marketplace Page Container */
+.marketplace-page-wrapper {
+  background-color: var(--mp-bg);
+  color: var(--mp-text-primary);
+  min-height: 100vh;
+}
+
+/* Custom Checkbox */
+.mp-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--mp-surface-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.mp-checkbox:checked {
+  background: var(--mp-primary);
+  border-color: var(--mp-primary);
+}
+
+.mp-checkbox:focus-visible {
+  outline: 2px solid var(--mp-primary-light);
+  outline-offset: 2px;
+}
+
+/* Custom Toggle Switch */
+.mp-toggle-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--mp-surface-2);
+  border: 1px solid var(--mp-border);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.mp-toggle-track.is-on {
+  background: var(--mp-primary);
+  border-color: var(--mp-primary);
+}
+
+.mp-toggle-knob {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.mp-toggle-track.is-on .mp-toggle-knob {
+  transform: translateX(16px);
+}
+
+/* Range Slider */
+.mp-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--mp-surface-2);
+  outline: none;
+  cursor: pointer;
+}
+
+.mp-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mp-primary);
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--mp-primary-glow);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.mp-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: var(--mp-primary-light);
+}
+
+.mp-range-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mp-primary);
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--mp-primary-glow);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.mp-range-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  background: var(--mp-primary-light);
+}
+
+/* Card Hover Animation */
+.mp-gpu-card {
+  background: var(--mp-card);
+  border: 1px solid var(--mp-border);
+  border-radius: 14px;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.mp-gpu-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--mp-border-hover);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(124, 58, 237, 0.15);
+}
+
+/* Card List View */
+.mp-gpu-card-list {
+  background: var(--mp-card);
+  border: 1px solid var(--mp-border);
+  border-radius: 14px;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.mp-gpu-card-list:hover {
+  transform: translateY(-2px);
+  border-color: var(--mp-border-hover);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(124, 58, 237, 0.15);
+}
+
+/* Custom Scrollbar for Filter Lists */
+.mp-filter-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mp-filter-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mp-filter-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+.mp-filter-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-gpu-card,
+  .mp-gpu-card-list,
+  .mp-toggle-knob,
+  .animate-pulse {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}

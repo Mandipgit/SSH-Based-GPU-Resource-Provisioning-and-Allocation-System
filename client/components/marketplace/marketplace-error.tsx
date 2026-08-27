@@ -1,7 +1,5 @@
 import React from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 interface MarketplaceErrorProps {
   message?: string;
@@ -9,32 +7,32 @@ interface MarketplaceErrorProps {
 }
 
 export function MarketplaceError({
-  message = "Something went wrong while loading the marketplace.",
+  message = "We couldn't retrieve the available GPUs right now.",
   onRetry,
 }: MarketplaceErrorProps) {
   return (
-    <Card className="flex flex-col items-center justify-center min-h-[360px] rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-corporate">
-      <CardContent className="flex flex-col items-center justify-center p-0">
-        <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive mb-4">
-          <AlertTriangle className="w-8 h-8" />
-        </div>
+    <div className="flex flex-col items-center justify-center min-h-[300px] rounded-[14px] border border-white/[0.07] bg-[#10101e] p-8 text-center">
+      <div className="w-12 h-12 rounded-[12px] bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mb-4">
+        <AlertTriangle className="w-6 h-6" />
+      </div>
 
-        <h3 className="text-lg font-bold text-foreground mb-2">
-          Unable to load GPUs
-        </h3>
+      <h3 className="font-outfit text-lg font-semibold text-[#f0f0f8] mb-1.5">
+        Unable to load GPUs
+      </h3>
 
-        <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          {message}
-        </p>
+      <p className="font-inter text-xs text-[#7a7a9a] max-w-md mb-5 leading-relaxed">
+        {message}
+      </p>
 
-        <Button
-          onClick={onRetry}
-          className="gap-2 font-semibold shadow-sm"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Try Again
-        </Button>
-      </CardContent>
-    </Card>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#7c3aed] text-white text-xs font-inter font-semibold hover:bg-[#9f67ff] transition-all cursor-pointer shadow-sm"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+        <span>Try Again</span>
+      </button>
+    </div>
   );
 }
+export default MarketplaceError;

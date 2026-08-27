@@ -1,41 +1,41 @@
 import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
 
 export function GpuCardSkeleton() {
   return (
-    <Card className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-corporate animate-pulse">
+    <div className="rounded-[14px] border border-white/[0.07] bg-[#10101e] p-4 sm:p-5 flex flex-col justify-between gap-4 animate-pulse">
       <div>
         {/* Header Skeleton */}
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2.5 flex-1">
-            <Skeleton className="w-8 h-8 rounded-xl bg-muted/60 shrink-0" />
-            <Skeleton className="h-5 w-32 bg-muted/70 rounded-md" />
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-[38px] h-[38px] rounded-[10px] bg-white/[0.05] shrink-0" />
+            <div className="space-y-1.5">
+              <div className="h-4 w-28 bg-white/[0.08] rounded" />
+              <div className="h-2.5 w-16 bg-white/[0.04] rounded" />
+            </div>
           </div>
-          <Skeleton className="h-6 w-20 bg-muted/50 rounded-full" />
+          <div className="h-5 w-16 bg-white/[0.05] rounded-full" />
         </div>
 
-        {/* Specs Skeleton */}
-        <div className="space-y-2.5 py-3 border-t border-b border-border/60 my-3">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-4 w-12 bg-muted/40 rounded" />
-            <Skeleton className="h-4 w-20 bg-muted/60 rounded" />
+        {/* Spec Panel Skeleton */}
+        <div className="grid grid-cols-3 gap-2 bg-[#16162a] border border-white/[0.07] rounded-[10px] p-3 my-3.5">
+          <div className="space-y-1.5">
+            <div className="h-2.5 w-8 bg-white/[0.05] rounded" />
+            <div className="h-4 w-12 bg-white/[0.08] rounded" />
           </div>
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-4 w-16 bg-muted/40 rounded" />
-            <Skeleton className="h-4 w-24 bg-muted/60 rounded" />
+          <div className="space-y-1.5">
+            <div className="h-2.5 w-12 bg-white/[0.05] rounded" />
+            <div className="h-4 w-14 bg-white/[0.08] rounded" />
           </div>
-        </div>
-
-        {/* Price Skeleton */}
-        <div className="flex items-baseline justify-between pt-1 pb-4">
-          <Skeleton className="h-4 w-16 bg-muted/40 rounded" />
-          <Skeleton className="h-7 w-28 bg-muted/70 rounded-md" />
+          <div className="space-y-1.5">
+            <div className="h-2.5 w-8 bg-white/[0.05] rounded" />
+            <div className="h-4 w-16 bg-white/[0.08] rounded" />
+          </div>
         </div>
       </div>
 
       {/* Button Skeleton */}
-      <Skeleton className="w-full h-9 rounded-lg bg-muted/60" />
-    </Card>
+      <div className="h-9 w-full rounded-[8px] bg-white/[0.06]" />
+    </div>
   );
 }
+export default GpuCardSkeleton;
