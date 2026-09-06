@@ -119,7 +119,8 @@ export function SessionsPage() {
         s.status === "active" ||
         s.status === "pending" ||
         s.status === "preparing" ||
-        s.status === "stopping"
+        s.status === "stopping" ||
+        s.status === "failed"
     ) || null;
 
   // Past sessions (completed, stopped, cancelled, failed)

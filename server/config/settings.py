@@ -201,6 +201,11 @@ CORS_ALLOW_ALL_ORIGINS = True
 RELAY_HOST = os.getenv('RELAY_HOST', '127.0.0.1')
 RELAY_PORT_START = int(os.getenv('RELAY_PORT_START', '40000'))
 RELAY_PORT_END = int(os.getenv('RELAY_PORT_END', '50000'))
+RELAY_SSH_PORT = int(os.getenv('RELAY_SSH_PORT', '22') or 22)
+RELAY_SSH_USER = os.getenv('RELAY_SSH_USER', 'relay_user') or 'relay_user'
+RELAY_CONNECT_HOST = os.getenv('RELAY_CONNECT_HOST') or RELAY_HOST
+RELAY_PUBLIC_HOST = os.getenv('RELAY_PUBLIC_HOST') or RELAY_HOST
+RELAY_PUBLIC_PORT_MAP = os.getenv('RELAY_PUBLIC_PORT_MAP', '') or ''
 
 # Payment Gateway (Stripe) Configuration
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', '')

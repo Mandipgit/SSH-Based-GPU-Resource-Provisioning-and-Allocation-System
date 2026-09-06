@@ -207,44 +207,69 @@ class StopSessionView(APIView):
     )
     @transaction.atomic
     def post(self, request, session_id):
+        from decimal import Decimal
+
         session = get_object_or_404(Session, id=session_id)
-        
-        if session.status != 'active':
+
+        cancellable = {
+            'pending', 'starting', 'container_running', 'tunnel_connecting',
+            'active', 'stopping', 'failed',
+        }
+        terminal = {'completed', 'terminated', 'cancelled'}
+        if session.status in terminal:
             return Response({
                 'status': 'error',
-                'message': 'Session is not active'
+                'message': f'Session is already {session.status}'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Calculate billing
+        if session.status not in cancellable:
+            return Response({
+                'status': 'error',
+                'message': f'Session cannot be stopped from status {session.status}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         end_time = timezone.now()
-        used_hours = (end_time - session.active_time).total_seconds() / 3600
-        actual_cost = used_hours * float(session.gpu.price_per_hour)
-        
         session.status = 'stopping'
         session.end_time = end_time
-        session.actual_cost = actual_cost
-        session.save()
-        
-        # Process payment
-        billing_result = BillingService.process_rental_payment(session)
-        
-        session.status = 'completed'
         session.termination_reason = 'renter_stopped'
-        session.save()
-        
-        # Mark GPU available
-        from decimal import Decimal
-        session.gpu.is_available = True
-        session.gpu.current_session_id = None
-        session.gpu.total_rental_hours += Decimal(str(used_hours))
-        session.gpu.total_earnings += Decimal(str(actual_cost))
-        session.gpu.total_sessions += 1
-        session.gpu.save()
-        
-        # Release relay port
+        session.save(update_fields=['status', 'end_time', 'termination_reason'])
+
+        never_active = session.active_time is None
+        if never_active:
+            try:
+                BillingService.release_hold(session)
+            except Exception as e:
+                print(f'release_hold on cancel failed: {e}')
+            session.actual_cost = 0
+            session.status = 'terminated'
+            session.save(update_fields=['actual_cost', 'status'])
+            billing_result = {
+                'actual_cost': 0.0,
+                'refund': float(session.total_amount or 0),
+                'host_earnings': 0.0,
+                'platform_fee': 0.0,
+            }
+            used_hours = 0.0
+        else:
+            used_hours = max(0.0, (end_time - session.active_time).total_seconds() / 3600)
+            actual_cost = used_hours * float(session.gpu.price_per_hour)
+            session.actual_cost = actual_cost
+            session.save(update_fields=['actual_cost'])
+            billing_result = BillingService.process_rental_payment(session)
+            session.status = 'completed'
+            session.save(update_fields=['status'])
+
+        gpu = session.gpu
+        gpu.is_available = True
+        gpu.current_session_id = None
+        if not never_active and used_hours > 0:
+            gpu.total_rental_hours += Decimal(str(used_hours))
+            gpu.total_earnings += Decimal(str(session.actual_cost or 0))
+            gpu.total_sessions += 1
+        gpu.save()
+
         if session.relay_port_obj:
             session.relay_port_obj.release()
-        
+
         return Response({
             'status': 'success',
             'message': 'Session stopped successfully',
@@ -361,6 +386,8 @@ class HostPendingSessionsView(APIView):
             'relay_server_ip': session.relay_server_ip,
             'relay_server_port': session.relay_server_port,
             'relay_auth_key': session.relay_auth_key,
+            'relay_ssh_port': RelayService.get_ssh_port() if hasattr(RelayService, 'get_ssh_port') else int(getattr(__import__('django.conf', fromlist=['settings']).settings, 'RELAY_SSH_PORT', 22) or 22),
+            'relay_ssh_user': getattr(__import__('django.conf', fromlist=['settings']).settings, 'RELAY_SSH_USER', 'relay_user'),
         })
 
 

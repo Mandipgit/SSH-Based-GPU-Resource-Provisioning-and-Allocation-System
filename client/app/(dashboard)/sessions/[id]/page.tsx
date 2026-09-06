@@ -132,6 +132,7 @@ export default function SessionDetailPage({ params }: SessionDetailPageProps) {
 
   const isActive = session.status === "active";
   const isPending = session.status === "pending" || session.status === "preparing";
+  const canStop = isActive || isPending || session.status === "stopping" || session.status === "failed";
   const sshCommand = session.sshConnectionString
     ? session.sshConnectionString
     : session.sshHost && session.sshPort
@@ -178,7 +179,7 @@ export default function SessionDetailPage({ params }: SessionDetailPageProps) {
           </div>
         </div>
 
-        {isActive && (
+        {canStop && (
           <Button
             variant="danger"
             size="md"

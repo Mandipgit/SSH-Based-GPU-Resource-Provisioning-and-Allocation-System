@@ -22,6 +22,19 @@ class RelayService:
         """Get the public relay host IP or hostname"""
         return getattr(settings, 'RELAY_HOST', '127.0.0.1')
     
+
+    @classmethod
+    def get_connect_host(cls):
+        return getattr(settings, 'RELAY_CONNECT_HOST', None) or cls.get_relay_host()
+
+    @classmethod
+    def get_ssh_port(cls) -> int:
+        return int(getattr(settings, 'RELAY_SSH_PORT', 22) or 22)
+
+    @classmethod
+    def get_ssh_user(cls):
+        return getattr(settings, 'RELAY_SSH_USER', 'relay_user') or 'relay_user'
+
     @classmethod
     @transaction.atomic
     def allocate_port(cls, session_id):
