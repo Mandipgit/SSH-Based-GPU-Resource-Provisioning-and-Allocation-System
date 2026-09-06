@@ -72,9 +72,18 @@ class SessionController extends ChangeNotifier {
       
       final String relayIp = data['relay_server_ip'] ?? '127.0.0.1';
       final int relayPort = data['relay_server_port'] ?? 40001;
+      final int relaySshPort = int.tryParse('${data['relay_ssh_port'] ?? 22}') ?? 22;
+      final String relayUser = (data['relay_ssh_user'] ?? 'relay_user').toString();
       final String authKey = data['relay_auth_key'] ?? '';
       
-      final tunnelSuccess = await _sshService.startTunnel(sessionId, relayIp, relayPort, authKey);
+      final tunnelSuccess = await _sshService.startTunnel(
+        sessionId,
+        relayIp,
+        relayPort,
+        authKey,
+        relaySshPort: relaySshPort,
+        relayUser: relayUser,
+      );
       
       if (!tunnelSuccess) {
         currentSession!.status = SessionStatus.failed;

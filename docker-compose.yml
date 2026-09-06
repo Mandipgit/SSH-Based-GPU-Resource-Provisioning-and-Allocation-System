@@ -1,0 +1,62 @@
+services:
+  db:
+    image: postgres:16-alpine
+    network_mode: host
+    environment:
+      POSTGRES_DB: gpu_rental
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gpu_rental -h 127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./server
+    network_mode: host
+    env_file:
+      - ./server/.env
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/gpu_rental
+      DATABASE_SSL_REQUIRE: "False"
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "5432"
+      DB_NAME: gpu_rental
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
+    volumes:
+      - /home/relay_user/.ssh:/home/relay_user/.ssh
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.node
+      args:
+        NEXT_PUBLIC_API_URL: /api
+    network_mode: host
+    environment:
+      NEXT_PUBLIC_API_URL: /api
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      - backend
+
+  gateway:
+    image: nginx:1.27-alpine
+    network_mode: host
+    volumes:
+      - ./docker/nginx-host.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  pgdata:

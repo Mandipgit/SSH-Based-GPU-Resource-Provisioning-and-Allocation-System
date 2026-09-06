@@ -6,7 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://gpu-rental-backend.onrender.com/api';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://holmes-observation-guild-prevent.trycloudflare.com/api',
+  );
   static const String tokenKey = 'jwt_token';
 
   Future<String?> _getToken() async {

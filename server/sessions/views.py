@@ -99,7 +99,7 @@ class CreateSessionView(APIView):
             host=host,
             renter=request.user,
             status='pending',
-            relay_server_ip=RelayService.get_relay_host(),
+            relay_server_ip=RelayService.get_public_host(),
             relay_server_port=port_info['port'],
             total_amount=total_amount,
             duration_hours=duration_hours,
@@ -207,44 +207,71 @@ class StopSessionView(APIView):
     )
     @transaction.atomic
     def post(self, request, session_id):
+        from decimal import Decimal
+        from sessions.services.billing import BillingService
+
         session = get_object_or_404(Session, id=session_id)
-        
-        if session.status != 'active':
+
+        cancellable = {
+            'pending', 'starting', 'container_running', 'tunnel_connecting',
+            'active', 'stopping', 'failed',
+        }
+        terminal = {'completed', 'terminated', 'cancelled'}
+        if session.status in terminal:
             return Response({
                 'status': 'error',
-                'message': 'Session is not active'
+                'message': f'Session is already {session.status}'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Calculate billing
+        if session.status not in cancellable:
+            return Response({
+                'status': 'error',
+                'message': f'Session cannot be stopped from status {session.status}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         end_time = timezone.now()
-        used_hours = (end_time - session.active_time).total_seconds() / 3600
-        actual_cost = used_hours * float(session.gpu.price_per_hour)
-        
         session.status = 'stopping'
         session.end_time = end_time
-        session.actual_cost = actual_cost
-        session.save()
-        
-        # Process payment
-        billing_result = BillingService.process_rental_payment(session)
-        
-        session.status = 'completed'
         session.termination_reason = 'renter_stopped'
-        session.save()
-        
-        # Mark GPU available
-        from decimal import Decimal
-        session.gpu.is_available = True
-        session.gpu.current_session_id = None
-        session.gpu.total_rental_hours += Decimal(str(used_hours))
-        session.gpu.total_earnings += Decimal(str(actual_cost))
-        session.gpu.total_sessions += 1
-        session.gpu.save()
-        
-        # Release relay port
+        session.save(update_fields=['status', 'end_time', 'termination_reason'])
+
+        never_active = session.active_time is None
+        if never_active:
+            # Cancel before the tunnel became active: full release of escrow hold.
+            try:
+                BillingService.release_hold(session)
+            except Exception as e:
+                print(f'release_hold on cancel failed: {e}')
+            session.actual_cost = 0
+            session.status = 'terminated'
+            session.save(update_fields=['actual_cost', 'status'])
+            billing_result = {
+                'actual_cost': 0.0,
+                'refund': float(session.total_amount or 0),
+                'host_earnings': 0.0,
+                'platform_fee': 0.0,
+            }
+            used_hours = 0.0
+        else:
+            used_hours = max(0.0, (end_time - session.active_time).total_seconds() / 3600)
+            actual_cost = used_hours * float(session.gpu.price_per_hour)
+            session.actual_cost = actual_cost
+            session.save(update_fields=['actual_cost'])
+            billing_result = BillingService.process_rental_payment(session)
+            session.status = 'completed'
+            session.save(update_fields=['status'])
+
+        gpu = session.gpu
+        gpu.is_available = True
+        gpu.current_session_id = None
+        if not never_active and used_hours > 0:
+            gpu.total_rental_hours += Decimal(str(used_hours))
+            gpu.total_earnings += Decimal(str(session.actual_cost or 0))
+            gpu.total_sessions += 1
+        gpu.save()
+
         if session.relay_port_obj:
             session.relay_port_obj.release()
-        
+
         return Response({
             'status': 'success',
             'message': 'Session stopped successfully',
@@ -358,9 +385,15 @@ class HostPendingSessionsView(APIView):
             'gpu_name': session.gpu.gpu_name,
             'duration_hours': session.duration_hours,
             'work_protection': session.work_protection_enabled,
-            'relay_server_ip': session.relay_server_ip,
+            # Host agent opens reverse tunnel to the connect host
+            'relay_server_ip': RelayService.get_connect_host(),
             'relay_server_port': session.relay_server_port,
+            'relay_ssh_port': RelayService.get_ssh_port(),
+            'relay_ssh_user': getattr(__import__('django.conf', fromlist=['settings']).settings, 'RELAY_SSH_USER', 'relay_user'),
             'relay_auth_key': session.relay_auth_key,
+            # Renter-facing reverse-proxied endpoint
+            'relay_public_host': RelayService.get_public_host(),
+            'ssh_connection_string': RelayService.format_ssh_command(session.relay_server_port),
         })
 
 
@@ -425,18 +458,27 @@ class HostSessionStatusUpdateView(APIView):
         
         session.status = status_map.get(status_value, session.status)
         
-        if serializer.validated_data.get('relay_server_ip'):
-            session.relay_server_ip = serializer.validated_data['relay_server_ip']
+        # Never persist loopback as the renter-facing relay host
+        incoming_ip = serializer.validated_data.get('relay_server_ip')
+        if incoming_ip and not RelayService.is_local_host(incoming_ip):
+            session.relay_server_ip = incoming_ip
         if serializer.validated_data.get('relay_server_port'):
             session.relay_server_port = serializer.validated_data['relay_server_port']
-            
+
         if status_value == 'ACTIVE':
             session.active_time = timezone.now()
-            if serializer.validated_data.get('ssh_connection_string'):
-                session.ssh_connection_string = serializer.validated_data['ssh_connection_string']
+            # Always publish the reverse-proxied public SSH command to renters
+            if RelayService.is_local_host(session.relay_server_ip):
+                session.relay_server_ip = RelayService.get_public_host()
+            port = session.relay_server_port or RelayService.get_port_range()[0]
+            session.relay_server_port = port
+            incoming_ssh = serializer.validated_data.get('ssh_connection_string') or ''
+            if incoming_ssh and 'localhost' not in incoming_ssh and '127.0.0.1' not in incoming_ssh:
+                session.ssh_connection_string = incoming_ssh
             else:
-                session.relay_server_ip = session.relay_server_ip or RelayService.get_relay_host()
-                session.ssh_connection_string = f"ssh renter@{session.relay_server_ip} -p {session.relay_server_port}"
+                session.ssh_connection_string = RelayService.format_ssh_command(
+                    port, host=session.relay_server_ip
+                )
             
             # Mark GPU as rented
             session.gpu.is_available = False

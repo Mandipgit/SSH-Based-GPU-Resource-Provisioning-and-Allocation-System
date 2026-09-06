@@ -60,9 +60,20 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
-CORS_ALLOW_CREDENTIALS = True
+# CORS — allow any origin (desktop host app, tunnels, local UIs)
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True').lower() in ('1', 'true', 'yes')
+_cors_origins = [o.strip() for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
+CORS_ALLOWED_ORIGINS = _cors_origins
+CORS_ALLOW_CREDENTIALS = os.getenv('CORS_ALLOW_CREDENTIALS', 'True').lower() in ('1', 'true', 'yes')
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https?://.*$',
+    r'^app://.*$',
+    r'^tauri://.*$',
+    r'^capacitor://.*$',
+    r'^null$',
+]
+CORS_ALLOW_HEADERS = ['*']
+CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT', 'HEAD']
 
 
 ROOT_URLCONF = 'config.urls'
@@ -102,23 +113,22 @@ elif os.getenv('DATABASE_URL'):
         'default': dj_database_url.config(
             default=os.getenv('DATABASE_URL'),
             conn_max_age=600,
-            ssl_require=True
+            ssl_require=os.getenv('DATABASE_SSL_REQUIRE', 'True').lower() in ('1', 'true', 'yes'),
         )
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'postgres'),
-            'USER': os.getenv('DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT', '6543'),
-            'OPTIONS': {
-                'sslmode': 'require',  # Supabase/Neon requires SSL
-            },
-        }
+    _db = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'postgres'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT', '6543'),
     }
+    _sslmode = os.getenv('DB_SSLMODE', 'require')
+    if _sslmode:
+        _db['OPTIONS'] = {'sslmode': _sslmode}
+    DATABASES = {'default': _db}
 
 CSRF_COOKIE_HTTPONLY = True
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000,http://localhost:3000').split(',') if origin.strip()]
@@ -194,11 +204,21 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-# CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS Configuration (see CORS_* above)
 
 # Relay Port and Host configuration
-RELAY_HOST = os.getenv('RELAY_HOST', '127.0.0.1')
+# RELAY_CONNECT_HOST: where host agents open reverse tunnels (ssh -R)
+# RELAY_PUBLIC_HOST: hostname shown to renters in the SSH command (reverse-proxied edge)
+RELAY_HOST = os.getenv('RELAY_HOST', os.getenv('RELAY_CONNECT_HOST', '127.0.0.1'))
+RELAY_CONNECT_HOST = os.getenv('RELAY_CONNECT_HOST', RELAY_HOST)
+RELAY_PUBLIC_HOST = os.getenv(
+    'RELAY_PUBLIC_HOST',
+    os.getenv('RELAY_HOST', 'relay.labhyacompute.com'),
+)
+RELAY_SSH_USER = os.getenv('RELAY_SSH_USER', 'relay_user')
+RELAY_SSH_PORT = int(os.getenv('RELAY_SSH_PORT', '22'))
+# Maps internal relay listen ports -> publicly forwarded ports (bore/ngrok), e.g. "40000:42679,40001:42680"
+RELAY_PUBLIC_PORT_MAP = os.getenv('RELAY_PUBLIC_PORT_MAP', '')
 RELAY_PORT_START = int(os.getenv('RELAY_PORT_START', '40000'))
 RELAY_PORT_END = int(os.getenv('RELAY_PORT_END', '50000'))
 
@@ -231,3 +251,14 @@ PLATFORM_NAME = os.getenv('PLATFORM_NAME', 'GPU Resource Provisioning & Rental P
 # Admin settings
 ADMIN_SITE_HEADER = f"{PLATFORM_NAME} Admin"
 ADMIN_SITE_TITLE = f"{PLATFORM_NAME} Administration"
+
+# Supabase
+SUPABASE_URL = os.getenv('SUPABASE_URL', '')
+SUPABASE_PUBLISHABLE_KEY = os.getenv('SUPABASE_PUBLISHABLE_KEY', '')
+SUPABASE_SECRET_KEY = os.getenv('SUPABASE_SECRET_KEY', '')
+SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY', os.getenv('SUPABASE_PUBLISHABLE_KEY', ''))
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', os.getenv('SUPABASE_SECRET_KEY', ''))
+SUPABASE_JWKS_URL = os.getenv('SUPABASE_JWKS_URL', '')
+
+# Payments: dummy | stripe
+PAYMENTS_MODE = os.getenv('PAYMENTS_MODE', 'dummy')
