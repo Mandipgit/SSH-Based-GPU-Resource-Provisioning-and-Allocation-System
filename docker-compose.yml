@@ -38,7 +38,7 @@ services:
   frontend:
     build:
       context: ./client
-      dockerfile: Dockerfile.node
+      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: /api
     network_mode: host
