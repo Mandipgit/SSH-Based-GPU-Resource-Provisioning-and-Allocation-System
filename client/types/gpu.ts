@@ -60,11 +60,21 @@ export function normalizeGpu(raw: Record<string, unknown> | null | undefined): M
     isRentable = raw.is_rentable;
   }
 
+  const hostStatus = String(raw.host_status ?? raw.hostStatus ?? "").toLowerCase();
+  const hasActiveSession = Boolean(raw.current_session_id ?? raw.currentSessionId);
+
   let availability = "offline";
   if (isRentable && isAvailable) {
     availability = "available";
-  } else if (isAvailable && !isRentable) {
+  } else if (!isAvailable || hasActiveSession) {
+    // Actually rented / held
     availability = "busy";
+  } else if (hostStatus && hostStatus !== "online") {
+    // GPU exists but host daemon is offline — not "busy"
+    availability = "offline";
+  } else if (isAvailable && !isRentable) {
+    // Fallback: available flag set but not rentable (usually offline host)
+    availability = hostStatus === "online" ? "busy" : "offline";
   } else if (typeof raw.availability === "string") {
     availability = raw.availability;
   } else if (typeof raw.gpu_availability === "string") {

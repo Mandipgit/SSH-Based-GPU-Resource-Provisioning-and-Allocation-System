@@ -99,7 +99,7 @@ class CreateSessionView(APIView):
             host=host,
             renter=request.user,
             status='pending',
-            relay_server_ip=RelayService.get_relay_host(),
+            relay_server_ip=RelayService.get_public_host(),
             relay_server_port=port_info['port'],
             total_amount=total_amount,
             duration_hours=duration_hours,
@@ -208,6 +208,7 @@ class StopSessionView(APIView):
     @transaction.atomic
     def post(self, request, session_id):
         from decimal import Decimal
+        from sessions.services.billing import BillingService
 
         session = get_object_or_404(Session, id=session_id)
 
@@ -235,6 +236,7 @@ class StopSessionView(APIView):
 
         never_active = session.active_time is None
         if never_active:
+            # Cancel before the tunnel became active: full release of escrow hold.
             try:
                 BillingService.release_hold(session)
             except Exception as e:
@@ -383,11 +385,15 @@ class HostPendingSessionsView(APIView):
             'gpu_name': session.gpu.gpu_name,
             'duration_hours': session.duration_hours,
             'work_protection': session.work_protection_enabled,
-            'relay_server_ip': session.relay_server_ip,
+            # Host agent opens reverse tunnel to the connect host
+            'relay_server_ip': RelayService.get_connect_host(),
             'relay_server_port': session.relay_server_port,
-            'relay_auth_key': session.relay_auth_key,
-            'relay_ssh_port': RelayService.get_ssh_port() if hasattr(RelayService, 'get_ssh_port') else int(getattr(__import__('django.conf', fromlist=['settings']).settings, 'RELAY_SSH_PORT', 22) or 22),
+            'relay_ssh_port': RelayService.get_ssh_port(),
             'relay_ssh_user': getattr(__import__('django.conf', fromlist=['settings']).settings, 'RELAY_SSH_USER', 'relay_user'),
+            'relay_auth_key': session.relay_auth_key,
+            # Renter-facing reverse-proxied endpoint
+            'relay_public_host': RelayService.get_public_host(),
+            'ssh_connection_string': RelayService.format_ssh_command(session.relay_server_port),
         })
 
 
@@ -452,18 +458,27 @@ class HostSessionStatusUpdateView(APIView):
         
         session.status = status_map.get(status_value, session.status)
         
-        if serializer.validated_data.get('relay_server_ip'):
-            session.relay_server_ip = serializer.validated_data['relay_server_ip']
+        # Never persist loopback as the renter-facing relay host
+        incoming_ip = serializer.validated_data.get('relay_server_ip')
+        if incoming_ip and not RelayService.is_local_host(incoming_ip):
+            session.relay_server_ip = incoming_ip
         if serializer.validated_data.get('relay_server_port'):
             session.relay_server_port = serializer.validated_data['relay_server_port']
-            
+
         if status_value == 'ACTIVE':
             session.active_time = timezone.now()
-            if serializer.validated_data.get('ssh_connection_string'):
-                session.ssh_connection_string = serializer.validated_data['ssh_connection_string']
+            # Always publish the reverse-proxied public SSH command to renters
+            if RelayService.is_local_host(session.relay_server_ip):
+                session.relay_server_ip = RelayService.get_public_host()
+            port = session.relay_server_port or RelayService.get_port_range()[0]
+            session.relay_server_port = port
+            incoming_ssh = serializer.validated_data.get('ssh_connection_string') or ''
+            if incoming_ssh and 'localhost' not in incoming_ssh and '127.0.0.1' not in incoming_ssh:
+                session.ssh_connection_string = incoming_ssh
             else:
-                session.relay_server_ip = session.relay_server_ip or RelayService.get_relay_host()
-                session.ssh_connection_string = f"ssh renter@{session.relay_server_ip} -p {session.relay_server_port}"
+                session.ssh_connection_string = RelayService.format_ssh_command(
+                    port, host=session.relay_server_ip
+                )
             
             # Mark GPU as rented
             session.gpu.is_available = False

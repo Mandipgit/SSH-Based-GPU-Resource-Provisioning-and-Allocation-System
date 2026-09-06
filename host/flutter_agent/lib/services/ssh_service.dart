@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 
 class SshTunnelService {
   Process? _sshProcess;
+  int? _exitCode;
 
   /// Starts an SSH reverse tunnel to the relay server.
   /// [relaySshPort] is the SSH daemon port on the relay (often 22, or a tunnel like bore.pub:NNNN).
@@ -85,14 +86,12 @@ class SshTunnelService {
     }
   }
 
-  /// Closes the SSH tunnel.
   Future<void> stopTunnel(String sessionId) async {
     print('[SSH] Closing SSH Tunnel for session $sessionId');
     if (_sshProcess != null) {
       _sshProcess!.kill();
       _sshProcess = null;
     }
-
     try {
       final tempDir = Directory.systemTemp;
       final keyFile = File(p.join(tempDir.path, 'relay_key_$sessionId.pem'));

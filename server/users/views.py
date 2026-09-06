@@ -10,6 +10,7 @@ import logging
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
 
 from .models import User, HostProfile, PasswordResetToken
+from gpus.services.marketplace_sync import sync_host_gpu_listing
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -585,7 +586,8 @@ class HostHeartbeatView(generics.GenericAPIView):
             host_profile.driver_version = request.data['driver_version']
         
         host_profile.save()
-        
+        sync_host_gpu_listing(host_profile, mark_available=True if host_profile.status == 'online' else None)
+
         return Response({
             'status': 'success',
             'data': {
@@ -680,7 +682,12 @@ class HostStatusView(generics.GenericAPIView):
             host_profile.mark_online()
         else:
             host_profile.mark_offline()
-        
+
+        sync_host_gpu_listing(
+            host_profile,
+            mark_available=True if status_value == 'online' else False,
+        )
+
         return Response({
             'status': 'success',
             'data': {

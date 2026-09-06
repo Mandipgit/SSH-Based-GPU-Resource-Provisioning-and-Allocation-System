@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import User, HostProfile
+from gpus.services.marketplace_sync import sync_host_gpu_listing
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
@@ -118,7 +119,14 @@ class HostProfileSerializer(serializers.ModelSerializer):
             user = User.objects.get(id=user_id)
         else:
             user = self.context['request'].user
-        return HostProfile.objects.create(user=user, **validated_data)
+        profile = HostProfile.objects.create(user=user, **validated_data)
+        sync_host_gpu_listing(profile)
+        return profile
+
+    def update(self, instance, validated_data):
+        profile = super().update(instance, validated_data)
+        sync_host_gpu_listing(profile)
+        return profile
     
 
 class ChangePasswordSerializer(serializers.Serializer):

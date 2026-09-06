@@ -97,7 +97,6 @@ class SessionController extends ChangeNotifier {
           print('[SessionController] Could not check relay override: $e');
         }
       }
-
       final tunnelSuccess = await _sshService.startTunnel(
         sessionId,
         relayIp,

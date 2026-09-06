@@ -4,17 +4,21 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/gpu_info.dart';
 
-class ApiService {
   static String? _cachedBaseUrl;
 
   /// Loads baseUrl from .env, dart-define, or defaults to the Cloudflare tunnel
   static String get baseUrl {
     if (_cachedBaseUrl != null) return _cachedBaseUrl!;
 
-    // 1. Check compile-time dart-define
-    const envDefined = String.fromEnvironment('BACKEND_API_URL');
-    if (envDefined.isNotEmpty) {
-      _cachedBaseUrl = envDefined;
+    // 1. Check compile-time dart-define (supports both BACKEND_API_URL and API_BASE_URL)
+    const envBackend = String.fromEnvironment('BACKEND_API_URL');
+    if (envBackend.isNotEmpty) {
+      _cachedBaseUrl = envBackend;
+      return _cachedBaseUrl!;
+    }
+    const envApi = String.fromEnvironment('API_BASE_URL');
+    if (envApi.isNotEmpty) {
+      _cachedBaseUrl = envApi;
       return _cachedBaseUrl!;
     }
 
@@ -32,6 +36,13 @@ class ApiService {
               return _cachedBaseUrl!;
             }
           }
+          if (trimmed.startsWith('API_BASE_URL=')) {
+            final val = trimmed.substring('API_BASE_URL='.length).trim();
+            if (val.isNotEmpty) {
+              _cachedBaseUrl = val;
+              return _cachedBaseUrl!;
+            }
+          }
         }
       }
     } catch (_) {}
@@ -40,7 +51,6 @@ class ApiService {
     _cachedBaseUrl = 'https://holmes-observation-guild-prevent.trycloudflare.com/api';
     return _cachedBaseUrl!;
   }
-
   static const String tokenKey = 'jwt_token';
 
   Future<String?> _getToken() async {

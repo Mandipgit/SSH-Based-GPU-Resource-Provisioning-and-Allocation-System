@@ -8,13 +8,14 @@ class GPUSerializer(serializers.ModelSerializer):
     host_name = serializers.CharField(source='host.user.email', read_only = True)
     host_uptime = serializers.FloatField(source='host.uptime_percentage', read_only = True)
     host_reliability = serializers.IntegerField(source='host.reliability_score',read_only= True)
+    host_status = serializers.CharField(source='host.status', read_only=True)
     is_rentable = serializers.BooleanField(read_only=True)
     average_rating = serializers.SerializerMethodField()
     
     class Meta:
         model = GPU
         fields = (
-            'id', 'host', 'host_name', 'host_uptime', 'host_reliability',
+            'id', 'host', 'host_name', 'host_uptime', 'host_reliability', 'host_status',
             'gpu_name', 'vram_total', 'vram_gb', 'cuda_cores',
             'memory_bandwidth', 'compute_capability',
             'driver_version', 'cuda_version',

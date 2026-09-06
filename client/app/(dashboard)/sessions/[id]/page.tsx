@@ -133,11 +133,16 @@ export default function SessionDetailPage({ params }: SessionDetailPageProps) {
   const isActive = session.status === "active";
   const isPending = session.status === "pending" || session.status === "preparing";
   const canStop = isActive || isPending || session.status === "stopping" || session.status === "failed";
-  const sshCommand = session.sshConnectionString
+  const rawHost = session.sshHost || "";
+  const isLocalRelay = ["localhost", "127.0.0.1", "0.0.0.0"].includes(rawHost);
+  const publicHost = !rawHost || isLocalRelay ? "relay.labhyacompute.com" : rawHost;
+  const sshCommand = session.sshConnectionString &&
+    !session.sshConnectionString.includes("localhost") &&
+    !session.sshConnectionString.includes("127.0.0.1")
     ? session.sshConnectionString
-    : session.sshHost && session.sshPort
-    ? `ssh -p ${session.sshPort} ${session.sshUser || "renter"}@${session.sshHost}`
-    : `ssh user@relay.labhya.io -p 22045`;
+    : session.sshPort
+    ? `ssh -p ${session.sshPort} ${session.sshUser || "renter"}@${publicHost}`
+    : `ssh -p 22045 renter@relay.labhyacompute.com`;
 
   const startTimeStr = new Date(session.startTime).toLocaleString(undefined, {
     dateStyle: "medium",
