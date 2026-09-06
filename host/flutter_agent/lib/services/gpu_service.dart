@@ -61,5 +61,46 @@ class GpuService {
       return null;
     }
   }
+
+  Future<Map<String, dynamic>?> getRealtimeStats() async {
+    try {
+      final result = await Process.run('nvidia-smi', [
+        '--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw',
+        '--format=csv,noheader,nounits'
+      ]);
+
+      if (result.exitCode == 0) {
+        final parts = (result.stdout as String).trim().split(', ');
+        if (parts.length >= 4) {
+          final util = double.tryParse(parts[0].trim()) ?? 0.0;
+          final usedMiB = double.tryParse(parts[1].trim()) ?? 0.0;
+          final totalMiB = double.tryParse(parts[2].trim()) ?? 1.0;
+          final temp = double.tryParse(parts[3].trim()) ?? 0.0;
+          double power = 0.0;
+          if (parts.length >= 5) {
+            power = double.tryParse(parts[4].trim()) ?? 0.0;
+          }
+          
+          final usedGb = (usedMiB / 1024).toStringAsFixed(1);
+          final totalGb = (totalMiB / 1024).toStringAsFixed(1);
+          final vramPct = totalMiB > 0 ? (usedMiB / totalMiB * 100) : 0.0;
+
+          return {
+            'utilization': '${util.toInt()}%',
+            'utilizationValue': util,
+            'vram': '${usedGb}GB / ${totalGb}GB',
+            'vramUsed': usedMiB,
+            'vramTotal': totalMiB,
+            'vramPct': vramPct,
+            'temperature': '${temp.toInt()}°C',
+            'temperatureValue': temp,
+            'power': '${power.toStringAsFixed(1)} W',
+            'powerValue': power,
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
 }
 

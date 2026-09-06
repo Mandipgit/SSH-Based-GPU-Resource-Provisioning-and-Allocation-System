@@ -48,7 +48,14 @@ class _LoginScreenState extends State<LoginScreen> {
           // Verify user role before granting access
           final userProfile = await _apiService.getUserProfile();
           if (userProfile != null) {
-            final isHost = userProfile['is_host'] == true || userProfile['role'] == 'host';
+            print('DEBUG LOGIN userProfile: $userProfile');
+            final role = userProfile['role']?.toString().toLowerCase();
+            final isHostRole = role == 'host' || role == 'both' || role == 'admin';
+            final isHostFlag = userProfile['is_host'] == true || userProfile['is_host']?.toString().toLowerCase() == 'true';
+            
+            print('DEBUG LOGIN role: $role, isHostRole: $isHostRole, isHostFlag: $isHostFlag');
+            final isHost = isHostRole || isHostFlag;
+            
             if (!isHost) {
               await _apiService.logout();
               if (mounted) {

@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/session.dart';
 import '../services/docker_service.dart';
 import '../services/ssh_service.dart';
 import '../services/api_service.dart';
+import '../services/gpu_service.dart';
 
 class SessionController extends ChangeNotifier {
   final DockerService _dockerService = DockerService();
   final SshTunnelService _sshService = SshTunnelService();
   final ApiService _apiService = ApiService();
+  final GpuService _gpuService = GpuService();
   
   Session? currentSession;
   Timer? _pollingTimer;
@@ -49,8 +52,13 @@ class SessionController extends ChangeNotifier {
 
     await _apiService.updateSessionStatus(sessionId, 'starting');
 
-    // 1. Start Docker Container
-    final success = await _dockerService.createAndStartTestSession(sessionId);
+    // 1. Start Docker Container with security quotas and injected renter public key
+    final renterSshKey = data['renter_ssh_key'] ?? data['public_key'] ?? data['renter_public_key'];
+    final success = await _dockerService.createAndStartSession(
+      sessionId: sessionId,
+      renterSshKey: renterSshKey?.toString(),
+    );
+
     if (!success) {
       if (currentSession != null) {
         currentSession!.status = SessionStatus.failed;
@@ -70,10 +78,24 @@ class SessionController extends ChangeNotifier {
       await _apiService.updateSessionStatus(sessionId, 'tunnel_connecting');
       notifyListeners();
       
-      final String relayIp = data['relay_server_ip'] ?? '127.0.0.1';
+      String relayIp = data['relay_server_ip'] ?? '127.0.0.1';
       final int relayPort = data['relay_server_port'] ?? 40001;
       final String authKey = data['relay_auth_key'] ?? '';
       
+      // Fallback check: if backend returns localhost/127.0.0.1, check for override
+      if (relayIp == '127.0.0.1' || relayIp == 'localhost') {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final overrideIp = prefs.getString('relay_host_override');
+          if (overrideIp != null && overrideIp.trim().isNotEmpty) {
+            print('[SessionController] Using relay host override: $overrideIp');
+            relayIp = overrideIp.trim();
+          }
+        } catch (e) {
+          print('[SessionController] Could not check relay override: $e');
+        }
+      }
+
       final tunnelSuccess = await _sshService.startTunnel(sessionId, relayIp, relayPort, authKey);
       
       if (!tunnelSuccess) {
@@ -84,7 +106,13 @@ class SessionController extends ChangeNotifier {
       }
 
       if (currentSession != null) {
-        currentSession!.status = SessionStatus.active;
+        currentSession = Session(
+          id: sessionId,
+          status: SessionStatus.active,
+          startedAt: DateTime.now(),
+          relayPort: relayPort,
+          relayIp: relayIp,
+        );
         await _apiService.updateSessionStatus(sessionId, 'active');
         notifyListeners();
         
@@ -101,8 +129,23 @@ class SessionController extends ChangeNotifier {
         return;
       }
       
-      // Send Heartbeat
-      await _apiService.sendHeartbeat(sessionId, 65, 95, 4000);
+      // Query real hardware telemetry
+      int temp = 50;
+      int util = 0;
+      int memUsed = 0;
+      try {
+        final stats = await _gpuService.getRealtimeStats();
+        if (stats != null) {
+          temp = (stats['temperatureValue'] as double? ?? 50.0).toInt();
+          util = (stats['utilizationValue'] as double? ?? 0.0).toInt();
+          memUsed = (stats['vramUsed'] as double? ?? 0.0).toInt();
+        }
+      } catch (e) {
+        print('[SessionController] Error getting real-time GPU stats: $e');
+      }
+
+      // Send Heartbeat with real telemetry
+      await _apiService.sendHeartbeat(sessionId, temp, util, memUsed);
 
       // Poll Commands
       try {

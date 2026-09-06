@@ -1,12 +1,46 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/gpu_info.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://gpu-rental-backend.onrender.com/api';
+  static String? _cachedBaseUrl;
+
+  /// Loads baseUrl from .env, dart-define, or defaults to the Cloudflare tunnel
+  static String get baseUrl {
+    if (_cachedBaseUrl != null) return _cachedBaseUrl!;
+
+    // 1. Check compile-time dart-define
+    const envDefined = String.fromEnvironment('BACKEND_API_URL');
+    if (envDefined.isNotEmpty) {
+      _cachedBaseUrl = envDefined;
+      return _cachedBaseUrl!;
+    }
+
+    // 2. Read dynamically from local .env file
+    try {
+      final envFile = File('.env');
+      if (envFile.existsSync()) {
+        final lines = envFile.readAsLinesSync();
+        for (final line in lines) {
+          final trimmed = line.trim();
+          if (trimmed.startsWith('BACKEND_API_URL=')) {
+            final val = trimmed.substring('BACKEND_API_URL='.length).trim();
+            if (val.isNotEmpty) {
+              _cachedBaseUrl = val;
+              return _cachedBaseUrl!;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. Fallback default
+    _cachedBaseUrl = 'https://holmes-observation-guild-prevent.trycloudflare.com/api';
+    return _cachedBaseUrl!;
+  }
+
   static const String tokenKey = 'jwt_token';
 
   Future<String?> _getToken() async {
@@ -126,13 +160,41 @@ class ApiService {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        print('getUserProfile success: $decoded');
+        Map<String, dynamic>? data;
+        if (decoded is Map<String, dynamic> && decoded.containsKey('data') && decoded['data'] is Map) {
+          data = decoded['data'] as Map<String, dynamic>;
+        } else if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+        if (data != null) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('cached_user_profile', jsonEncode(data));
+          } catch (_) {}
+          return data;
+        }
+        return decoded;
       }
+      print('getUserProfile error: ${response.statusCode} - ${response.body}');
       return null;
     } catch (e) {
       print('Network error: $e');
       return null;
     }
+  }
+
+  /// Get Cached User Profile
+  Future<Map<String, dynamic>?> getCachedUserProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_user_profile');
+      if (cached != null) {
+        return jsonDecode(cached) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Get Host Dashboard Metrics
