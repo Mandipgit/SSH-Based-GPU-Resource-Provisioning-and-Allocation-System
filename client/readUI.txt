@@ -1,0 +1,45 @@
+# vast.ai UI/UX Analysis Reference Document
+
+## 1. Color Hierarchy
+* **Primary Brand/Accent Color:** Bright Blue / Azure (`#2B55E8` and `#315FFF`). Used for high-priority CTAs (like the quick help floating button), hover states, link highlights, and focus rings.
+* **Secondary Brand Color / Accent:** Lavender / Light Blue (`#a8bbff`). Used for secondary links and text hover accents.
+* **Background Colors:** Dark theme defaults. Pure black (`#000000`), dark charcoal (`#0a0a0a`/`#1A1A1A`), and GitHub-dark slate (`#0d1117` for code/terminal blocks).
+* **Text Colors:**
+  * **Headings & Bold Titles:** Pure White (`#ffffff` or `text-white`).
+  * **Body Text & Info Labels:** Muted Light Gray (`text-[#d4d4d4]`, `text-white/70`, `text-white/60`).
+  * **Input & Dark-Background Accents:** Charcoal/Off-Black (`text-[#0a0a0a]`, `text-[#1A1A1A]`).
+  * **Placeholders:** Medium Gray (`text-[#6b7280]` / `text-white/50`).
+* **Visual Effects:** Smooth glowing dark-mode styling with subtle ambient blue/purple background highlights.
+
+## 2. Typography
+* **Fonts:**
+  * **Headings:** Custom display/sans font, semi-bold & bold (`font-heading`).
+  * **Body/Standard Interface:** Clean modern sans-serif (`sans-font`).
+  * **Developer Links:** Roboto (`font-['Roboto',sans-serif]`).
+  * **Terminal/Code blocks:** Monospace (`font-mono`).
+* **Sizing & Weights:**
+  * **Main Headlines:** Semi-bold/bold.
+  * **GPU specifications & labels:** Small and bold (`text-[13px]`, `text-[15px]`, `font-semibold`).
+  * **Footer & Button text:** Standard medium (`text-[16px]`, `font-medium`).
+  * **Hero Search / Input text:** Base size (`text-base`, ~16px).
+  * **Interactive Terminal outputs:** Small monospaced (`text-[12px] md:text-[13px]`).
+
+## 3. Animations & Interactions
+* **Hover States:**
+  * **Primary Buttons:** Quick Help floating button translates slightly up (`hover:-translate-y-0.5`) and casts a wider glow (`hover:shadow-[0_16px_30px_rgba(43,85,232,0.24)]`).
+  * **Secondary Outline Buttons (e.g. Case Studies):** Dynamic inversion from a white border with white text to pure white background and dark text (`hover:bg-white hover:text-[#0a0a0a]`).
+  * **Links:** Navigation & footer links transition to bright white or lavender (`transition-colors duration-150`).
+* **Dynamic Animations:**
+  * **Interactive Terminal:** Continually types/simulates commands (e.g., `vastai search offers`) and returns live mock output blocks in a looping sequence.
+* **Layout Mechanics:**
+  * **Sticky Navigation:** Header bar is sticky (stays pinned near the top of the viewport when scrolling).
+
+## 4. Layout & Components
+* **Navbar Style:** Fixed, dark theme, left-aligned logo, center-aligned developer and product links, right-aligned action buttons (Contact Sales, Console).
+* **Card Layouts:**
+  * **GPU Grid:** 3-column structured grid highlighting VRAM, architecture, supply levels, price trends (from/median/hour), and a primary "Rent" button.
+  * **Model Templates:** 4-column layout showcasing large open-source model cards (e.g., Kimi K3, Qwen, GLM, Krea) with quick "Deploy" actions.
+* **Forms & Fields:**
+  * **Hero Email CTA:** Rounded pill-shaped field with a bright blue inline contrast CTA button.
+  * **Newsletter Subscription:** Transparent background with a simple bottom underline border and an arrow icon action button (`→`).
+* **Spacing:** Modern, generous padding with consistent spacing across components (using standard Tailwind padding scales).

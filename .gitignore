@@ -29,3 +29,15 @@ logs/
 # Miscellaneous
 scratch/
 SSH-Based GPU Resource Provisioning API.yaml
+
+# Python Build and Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+staticfiles/
+db.sqlite3
+media/
