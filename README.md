@@ -444,7 +444,12 @@ GPU Renting System/
 └── docker-compose.yml    # Root multi-container orchestration (DB, backend, frontend, gateway)
 
 ---
+---
+
 # 📁 Project Structure (High Level Architecture Overview)
+
+```text
+
 f:\GPU Renting System\
 │
 ├── 📁 server/                                 # --- BACKEND (Django REST Framework) ---
