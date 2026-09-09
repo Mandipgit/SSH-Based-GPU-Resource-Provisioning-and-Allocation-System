@@ -446,7 +446,7 @@ GPU Renting System/
 ---
 ---
 
-# 📁 Project Structure (High Level Architecture Overview)
+**# 📁 Project Structure (Detailed Directory Tree)**
 
 ```text
 
