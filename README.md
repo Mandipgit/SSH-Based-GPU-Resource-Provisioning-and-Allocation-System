@@ -431,38 +431,141 @@ SSHCredential
 
 ---
 
-# 📁 Project Structure
+# 📁 Project Structure (High Level Architecture Overview)
 
 ```text
-GPU-Renting-System/
-│
-├── backend/
-│   └── ...
-│
-├── frontend/
-│   └── ...
-│
-├── host-agent/
-│   └── ...
-│
-├── docker/
-│   └── ...
-│
-├── assets/
-│   ├── screenshots/
-│   │   ├── host-dashboard.png
-│   │   └── started-session.png
-│   │
-│   ├── architecture/
-│   │   └── system-architecture.png
-│   │
-│   └── demos/
-│       └── gpu-session-demo.gif
-│
-└── README.md
-```
+GPU Renting System/
+├── server/               # Central Django REST Framework backend (APIs, DB, Auth, Billing)
+├── client/               # Next.js 16 (React 19) Web Frontend for renters
+├── host/                 # Host desktop agent (Flutter) & Docker GPU sandbox runtime
+│   ├── docker/session/   # Ubuntu + CUDA Dockerfile & SSH configuration for GPU workloads
+│   └── flutter_agent/    # Flutter desktop application (hardware telemetry, tunnel manager)
+├── docker/               # Nginx reverse proxy configuration
+└── docker-compose.yml    # Root multi-container orchestration (DB, backend, frontend, gateway)
 
 ---
+# 📁 Project Structure (High Level Architecture Overview)
+f:\GPU Renting System\
+│
+├── 📁 server/                                 # --- BACKEND (Django REST Framework) ---
+│   ├── 📁 admin_panel/                        # Admin dashboard APIs & metrics aggregation
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── 📁 config/                             # Core Django settings, WSGI/ASGI, URLs
+│   │   ├── settings.py                        # Database, JWT, Stripe, Relay port settings
+│   │   ├── urls.py                            # Central routing table (/api/auth/, /api/gpus/, etc.)
+│   │   └── wsgi.py
+│   ├── 📁 dashboard/                          # Renter & host summary analytics
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── 📁 gpus/                               # GPU registry & node specification management
+│   │   ├── models.py                          # GPU model (VRAM, CUDA, price/hr, availability)
+│   │   ├── serializers.py
+│   │   ├── urls.py
+│   │   └── views.py                           # Marketplace search, filter, and registration
+│   ├── 📁 notifications/                      # Session event & alert system
+│   │   ├── models.py                          # In-app notifications
+│   │   ├── services.py                        # Email/alert dispatcher
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── 📁 reviews/                            # Renter rating & review system for GPU hosts
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── 📁 sessions/                           # Rental lifecycle, SSH keys & relay management
+│   │   ├── 📁 services/
+│   │   │   ├── billing.py                     # Escrow hold, duration cost calculation
+│   │   │   └── relay.py                       # Port leasing (40000-50000) & SSH keypair generation
+│   │   ├── host_urls.py                       # Host-facing agent routes (/api/host/sessions/pending/)
+│   │   ├── host_views.py                      # Host session pickup & heartbeat ingestion
+│   │   ├── models.py                          # Session, SessionMetric, RelayPort, HostEarning
+│   │   ├── serializers.py
+│   │   ├── urls.py                            # Renter routes (/sessions/, /sessions/<id>/stop/)
+│   │   └── views.py                           # Session creation, state machine transitions
+│   ├── 📁 users/                              # Custom User & Profile management
+│   │   ├── models.py                          # CustomUser (Renter, Provider, Admin), HostProfile
+│   │   ├── serializers.py
+│   │   ├── urls.py                            # Auth endpoints (/login/, /register/, /refresh/)
+│   │   └── views.py
+│   ├── 📁 wallets/                            # Payment escrow, wallet balances & Stripe
+│   │   ├── 📁 services/
+│   │   │   └── stripe_service.py              # Stripe PaymentIntent & webhook processing
+│   │   ├── models.py                          # Wallet, Transaction, PaymentLog
+│   │   ├── serializers.py
+│   │   ├── urls.py
+│   │   └── views.py                           # Top-up, deposit callback, balance checks
+│   ├── .env.example                           # Sample backend environment variables
+│   ├── Dockerfile                             # Python 3.12 slim container definition
+│   ├── docker-entrypoint.sh                   # DB wait check, migrations, superuser seeding
+│   ├── manage.py                              # Django CLI entrypoint
+│   ├── requirements.txt                       # Python dependencies
+│   └── render.yaml                            # Cloud deployment blueprint
+│
+├── 📁 client/                                 # --- FRONTEND (Next.js 16 + React 19) ---
+│   ├── 📁 app/                                # Next.js App Router
+│   │   ├── 📁 (auth)/login/                   # Sign-in page
+│   │   ├── 📁 register/                       # Sign-up page with role selection
+│   │   ├── 📁 marketplace/                    # Public GPU browse catalog
+│   │   │   └── 📁 gpu/[id]/                   # Individual GPU spec & rental booking page
+│   │   ├── 📁 (dashboard)/                    # Authenticated renter dashboard
+│   │   │   ├── 📁 sessions/                   # Session history table & active rental cards
+│   │   │   │   └── 📁 [id]/                   # Real-time session detail & SSH access view
+│   │   │   ├── 📁 wallet/                     # Deposit modal & transaction history
+│   │   │   ├── 📁 settings/                   # Security, notifications, compute preferences
+│   │   │   └── 📁 profile/                    # User profile & credentials
+│   │   ├── globals.css                        # Tailwind CSS design tokens & theme variables
+│   │   ├── layout.tsx                         # Root layout with ThemeProvider & Toaster
+│   │   └── page.tsx                           # Marketing landing page (Hero, features, pricing)
+│   ├── 📁 components/                         # Modular UI component library
+│   │   ├── 📁 ui/                             # Base primitives (Card, Button, Badge, Skeleton, Sonner)
+│   │   ├── 📁 sessions/                       # ActiveSessionCard, StopSessionDialog, Badges
+│   │   ├── 📁 marketplace/                    # GpuCard, MarketplaceFilters, GpuSpecifications
+│   │   ├── 📁 wallet/                         # WalletBalanceCard, DepositDialog, TransactionList
+│   │   ├── 📁 landing/                        # Hero, TechnicalSecurity, MarketplacePreview
+│   │   └── 📁 layouts/                        # Header, Sidebar, Navigation
+│   ├── 📁 services/                           # Client HTTP integration layer
+│   │   ├── api.ts                             # Axios instance with auto-refresh JWT interceptor
+│   │   ├── sessions.ts                        # Session CRUD API calls
+│   │   ├── wallet.ts                          # Wallet & payment API calls
+│   │   └── mockData.ts                        # Local fallback fixtures
+│   ├── 📁 stores/                             # Zustand state stores (auth-store.ts)
+│   ├── 📁 types/                              # TypeScript interfaces (gpu.ts, session.ts, wallet.ts)
+│   ├── Dockerfile                             # Next.js standalone production build image
+│   ├── package.json                           # Node.js dependencies & scripts
+│   └── tsconfig.json                          # TypeScript compiler configuration
+│
+├── 📁 host/                                   # --- HOST RUNTIME & AGENT ---
+│   ├── 📁 docker/session/                     # GPU Session Container Environment
+│   │   ├── Dockerfile                         # Ubuntu 24.04 + CUDA 12.9.1 runtime image
+│   │   ├── entrypoint.sh                      # SSH daemon startup & container initialization
+│   │   └── sshd_config                        # Hardened SSH configuration (pubkey only)
+│   └── 📁 flutter_agent/                      # Flutter Desktop Host Application
+│       ├── 📁 lib/
+│       │   ├── 📁 controllers/
+│       │   │   └── session_controller.dart    # Manages container lifecycle, tunnels & heartbeats
+│       │   ├── 📁 models/
+│       │   │   ├── gpu_info.dart              # Local GPU specifications model
+│       │   │   └── session.dart               # Active host session model
+│       │   ├── 📁 services/
+│       │   │   ├── api_service.dart           # Communicates with central Django backend
+│       │   │   ├── docker_service.dart        # Spawns & quotas Docker container (--gpus all)
+│       │   │   ├── gpu_service.dart           # Executes `nvidia-smi` to parse live telemetry
+│       │   │   └── ssh_service.dart           # Initiates reverse SSH tunnel (`ssh -R`)
+│       │   ├── 📁 ui/                         # Flutter screens & telemetry widgets
+│       │   │   └── screens/home_screen.dart
+│       │   └── main.dart                      # Flutter app bootstrap
+│       └── pubspec.yaml                       # Flutter dependencies & desktop assets
+│
+├── 📁 docker/                                 # --- INFRASTRUCTURE CONFIG ---
+│   ├── nginx.conf                             # Standard production Nginx reverse proxy
+│   └── nginx-host.conf                        # Host-mode Nginx routing ports (frontend, API, static)
+│
+├── .gitignore                                 # Git ignore patterns
+├── docker-compose.yml                         # Multi-service stack (db, backend, frontend, gateway)
+├── README.md                                  # Architectural specification & product documentation
+└── SSH-Based GPU Resource Provisioning API.yaml # OpenAPI / Swagger specification
+
 
 # 🚧 Future Development
 
