@@ -52,7 +52,6 @@ The following screenshots demonstrate the implemented system:
 
 
 
-![Host Dashboard](./assets/screenshots/host-dashboard.png)
 
 *Host dashboard showing the registered GPU node and its current status/telemetry.*
 
