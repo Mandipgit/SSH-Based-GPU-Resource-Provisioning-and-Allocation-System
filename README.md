@@ -1,442 +1,519 @@
 # ⚡ SSH-Based GPU Resource Provisioning and Allocation System
 
-> A production-oriented platform for **GPU resource allocation, automated provisioning, and secure SSH-based remote access**.
+> A production-oriented platform for GPU resource allocation, automated provisioning, and secure SSH-based remote access.
 
-The **SSH-Based GPU Resource Provisioning and Allocation System** is a backend and infrastructure-focused platform designed to allow users to **rent GPU compute resources and access their assigned environments remotely through SSH**.
+## 📌 Project Status
 
-The system manages the complete GPU rental lifecycle — from **GPU node registration and resource discovery** to **allocation, environment provisioning, SSH authentication, monitoring, and resource cleanup**.
+**Development Paused — Core System Implemented**
+
+The core platform has been implemented, including GPU node management, resource allocation, rental/session lifecycle management, telemetry, wallet and escrow billing, host management, Docker-based GPU provisioning, and the renter web dashboard.
+
+Development is currently paused due to infrastructure and environment constraints around **production-grade relay/reverse-tunneling infrastructure and distributed deployment**.
+
+The project is **paused rather than abandoned** and can be continued once the required infrastructure becomes available.
+
+### ✅ Implemented
+
+* 🔐 User authentication with JWT and role-based access
+* 👤 Renter, Provider/Host, and Admin roles
+* 🖥️ GPU node registration and discovery
+* 📊 GPU specifications and telemetry
+* ⚙️ GPU resource allocation
+* 🔄 Rental/session lifecycle management
+* 💰 Wallet, escrow, and usage-based billing
+* 💳 Stripe wallet top-ups
+* 🖥️ Host desktop agent
+* 🟢 NVIDIA GPU detection using `nvidia-smi`
+* 🐳 GPU-enabled Docker sandbox provisioning
+* 🔑 SSH user and public-key provisioning
+* 📦 Container CPU, memory, SHM, and process limits
+* 🌐 Renter marketplace and dashboard
+* 📖 Swagger/OpenAPI API documentation
+
+### 🚧 Remaining / Blocked
+
+* Production relay server
+* Reliable SSH reverse tunneling across NAT
+* Production-grade external routing
+* Relay port allocation and cleanup
+* Background workers for automated session expiry and cleanup
+* In-browser SSH terminal
+* Full distributed production deployment
+* Extended multi-node GPU testing
+
+### 🧪 Provisioning Evidence
+
+The system successfully reached the GPU session provisioning stage, including resource allocation and creation of an isolated GPU-enabled Docker environment.
+
+The following screenshots demonstrate the implemented system:
+
+### Host Dashboard
+<img width="1917" height="1076" alt="Screenshot 2026-09-04 233438" src="https://github.com/user-attachments/assets/76176220-e6f1-4a96-9a5a-a25250230625" />
+
+
+
+![Host Dashboard](./assets/screenshots/host-dashboard.png)
+
+*Host dashboard showing the registered GPU node and its current status/telemetry.*
+
+### Started GPU Session
+
+<img width="1892" height="1044" alt="Screenshot 2026-09-06 212745" src="https://github.com/user-attachments/assets/afa20d7a-9d89-4df0-aabf-8d3c8b0b28da" />
+
+
+![Started GPU Session](./assets/screenshots/started-session.png)
+
+*Started rental session demonstrating the implemented session provisioning workflow.*
+
+> **Note:** The screenshots above are included as implementation evidence. The remaining production blocker was the reliable external connection through the relay/reverse-tunneling layer.
 
 ---
 
-## 🎯 Problem Statement
+# 🎯 Problem Statement
 
-GPU computing resources are expensive and often underutilized. Individuals and organizations may have unused GPU capacity while developers and researchers need temporary access to GPUs for machine learning, deep learning, scientific computing, and other compute-intensive workloads.
+Modern GPUs are expensive resources that are often underutilized.
 
-This project aims to build a system that connects these two sides by providing a controlled platform where:
+At the same time, developers, researchers, and students frequently need temporary access to GPUs for machine learning, AI workloads, rendering, simulations, and other compute-intensive tasks.
 
-* GPU providers can register and manage GPU nodes.
-* Renters can discover available GPU resources.
-* The system automatically allocates suitable resources.
-* User environments are provisioned automatically.
-* Renters receive secure SSH-based access.
-* Resources are monitored throughout the rental.
-* Access and resources are cleaned up when the rental ends.
+This project aims to provide a platform that connects:
+
+**GPU Providers → GPU Renters**
+
+Providers can register their GPU machines and make their resources available, while renters can discover available GPUs, start rental sessions, and access isolated GPU environments remotely.
 
 ---
 
-## 🏗️ System Architecture
+# 🏗️ System Architecture
 
 ```text
-                         ┌─────────────────────┐
-                         │       RENTER        │
-                         │                     │
-                         │  Web / CLI / SSH    │
-                         └──────────┬──────────┘
+                         ┌──────────────────────┐
+                         │      RENTER          │
+                         │                      │
+                         │  Web Dashboard       │
+                         │  SSH Client          │
+                         └──────────┬───────────┘
                                     │
-                                    │ REST API
                                     ▼
-                    ┌────────────────────────────┐
-                    │       FastAPI Backend      │
-                    │                            │
-                    │  Authentication            │
-                    │  Rental Management         │
-                    │  GPU Allocation            │
-                    │  Provisioning              │
-                    │  SSH Key Management        │
-                    │  Resource Monitoring       │
-                    └──────────────┬─────────────┘
-                                   │
-                     ┌─────────────┴─────────────┐
-                     │                           │
-                     ▼                           ▼
-             ┌──────────────┐          ┌─────────────────┐
-             │  PostgreSQL  │          │   GPU Manager   │
-             │              │          │                 │
-             │ Users        │          │ Node Discovery  │
-             │ GPU Nodes    │          │ Allocation      │
-             │ Rentals      │          │ Provisioning    │
-             │ Resources    │          │ Monitoring      │
-             └──────────────┘          └────────┬────────┘
-                                                │
-                                     SSH / Docker / NVIDIA
-                                                │
-                         ┌──────────────────────┴──────────────────┐
-                         │                                         │
-                  ┌──────▼──────┐                           ┌──────▼──────┐
-                  │   GPU Node  │                           │   GPU Node  │
-                  │             │                           │             │
-                  │ NVIDIA GPU  │                           │ NVIDIA GPU  │
-                  │ Docker      │                           │ Docker      │
-                  │ OpenSSH     │                           │ OpenSSH     │
-                  └─────────────┘                           └─────────────┘
+                         ┌──────────────────────┐
+                         │    Backend API       │
+                         │                      │
+                         │ Authentication       │
+                         │ GPU Management       │
+                         │ Allocation            │
+                         │ Rental Management     │
+                         │ Billing               │
+                         └──────────┬───────────┘
+                                    │
+                    ┌───────────────┼────────────────┐
+                    │               │                │
+                    ▼               ▼                ▼
+              PostgreSQL       GPU Manager      Wallet/Escrow
+                    │
+                    │
+                    ▼
+          ┌──────────────────────┐
+          │     GPU HOST         │
+          │                      │
+          │ Host Desktop Agent   │
+          │ NVIDIA GPU            │
+          │ NVIDIA Driver         │
+          │ Docker                │
+          │ OpenSSH               │
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │   GPU Sandbox        │
+          │                      │
+          │ NVIDIA CUDA          │
+          │ Python / Dev Tools   │
+          │ Renter SSH User      │
+          └──────────────────────┘
 ```
 
 ---
 
-## 🔄 Core Workflow
+# 🔄 Core Workflow
 
-### 1. GPU Provider Registers a Node
+### 1. Provider Registers a GPU Node
 
-A provider registers a GPU machine with information such as:
+A provider installs the host agent on their machine.
 
-```text
-GPU Model
-GPU Count
-VRAM
-CPU Cores
-RAM
-Storage
-Operating System
-Network Information
-Node Status
-```
-
-### 2. System Detects GPU Resources
-
-The platform communicates with the GPU node and collects information using NVIDIA tooling such as:
-
-```bash
-nvidia-smi
-```
-
-The system can determine:
+The host agent detects information such as:
 
 * GPU model
-* GPU memory
+* VRAM
+* CUDA version
+* NVIDIA driver version
 * GPU utilization
 * GPU temperature
-* Available GPUs
-* Running processes
-* Node health
+* GPU power usage
+* CPU and RAM information
+* Network information
 
-### 3. Renter Requests a GPU
+The node is then registered with the backend.
 
-A renter selects the required resources:
+### 2. GPU Discovery
 
-```text
-GPU: RTX 4090
-GPU Count: 1
-CPU: 8 cores
-RAM: 32 GB
-Storage: 100 GB
-Duration: 6 hours
-```
+Renters can browse available GPU nodes through the marketplace.
 
-### 4. Resource Allocation
+They can view GPU specifications and other available resource information before starting a rental.
 
-The allocation engine searches for a suitable available resource.
+### 3. Resource Allocation
+
+When a renter starts a rental:
 
 ```text
-Requested:
-    1 × RTX 4090
-    8 CPU cores
-    32 GB RAM
-
-             ↓
-
-Available Nodes
-
-Node A → RTX 3090 → unavailable
-Node B → RTX 4090 → available
-Node C → A100      → available
-
-             ↓
-
-Allocated:
-Node B → GPU #0
+Renter Request
+      ↓
+GPU Availability Check
+      ↓
+Resource Allocation
+      ↓
+Rental Session Created
 ```
 
-### 5. Environment Provisioning
-
-After allocation, the system prepares the renter's environment.
-
-Provisioning may include:
+The system manages the rental through a defined session lifecycle:
 
 ```text
-Create isolated environment
-        ↓
-Configure GPU access
-        ↓
-Configure CPU / RAM limits
-        ↓
-Configure storage
-        ↓
-Create SSH user
-        ↓
-Install SSH public key
-        ↓
-Start container
-        ↓
-Verify environment
+PENDING
+   ↓
+STARTING
+   ↓
+CONTAINER_RUNNING
+   ↓
+TUNNEL_CONNECTING
+   ↓
+ACTIVE
+   ↓
+STOPPING
+   ↓
+COMPLETED / FAILED
 ```
 
-### 6. SSH Access
+### 4. GPU Sandbox Provisioning
 
-The renter receives connection information:
+The host agent provisions an isolated Docker environment using NVIDIA GPU support.
 
-```bash
-ssh gpu-user@gpu-node.example.com -p 2222
-```
+The sandbox includes:
 
-Once connected, the renter can run GPU workloads:
+* NVIDIA CUDA runtime
+* Python
+* pip
+* OpenSSH
+* Basic developer tools
+* Dedicated non-root renter user
 
-```bash
-nvidia-smi
+GPU access is provided through NVIDIA Container Toolkit.
 
-python train.py
+### 5. SSH Access
 
-docker ps
-```
+The renter's public SSH key is injected into the provisioned environment.
 
-### 7. Rental Expiration
-
-When the rental expires, the system performs cleanup:
+The intended workflow is:
 
 ```text
-Disable SSH access
-        ↓
-Stop environment
-        ↓
-Release GPU
-        ↓
-Remove temporary credentials
-        ↓
-Clean temporary resources
-        ↓
-Mark GPU as available
+Renter
+   │
+   │ SSH
+   ▼
+Relay / Reverse Tunnel
+   │
+   ▼
+Host Machine
+   │
+   ▼
+GPU Docker Container
 ```
+
+The production relay/reverse-tunneling layer remains the primary infrastructure blocker.
+
+### 6. Rental Completion
+
+When a session ends, the system tracks the rental lifecycle and calculates usage-based cost based on elapsed rental duration.
+
+The wallet/escrow system handles:
+
+* Balance
+* Fund reservation
+* Usage cost
+* Host earnings
+* Host penalties
+* Refund/work protection logic
 
 ---
 
-# 🔐 Security Model
+# 🔐 Security
 
-Security is a core part of the system because renters execute arbitrary workloads on remote compute infrastructure.
+Security was considered throughout the system design.
 
-The system is designed around:
+### Authentication
+
+* JWT-based authentication
+* Access and refresh tokens
+* Role-based access control
+
+### SSH Security
 
 * SSH public-key authentication
-* No password-based SSH access
-* User authentication and authorization
-* Rental-based access control
-* Isolated execution environments
-* Container-based resource isolation
-* Resource limits
-* Controlled SSH access
-* Automatic credential cleanup
-* Provider/renter role separation
-* API authentication using JWT
+* No renter passwords
+* Dedicated renter users
+* Dynamic public-key injection
+* Credential cleanup during session lifecycle
 
-The long-term architecture is designed to minimize direct access between renters and the underlying host system.
+### Container Isolation
+
+GPU workloads run inside Docker containers with resource limits including:
+
+* CPU
+* Memory
+* Shared memory
+* Process count
+
+Containers run with a non-root renter user.
 
 ---
 
 # 🧩 Core Components
 
-## Authentication & Authorization
+## 🔐 Authentication & Authorization
 
-Handles:
+Supports:
 
-* User registration
-* Login
-* JWT authentication
-* Password hashing
-* Role-based access control
-* Provider permissions
-* Renter permissions
+* Renters
+* Providers/Hosts
+* Administrators
 
-Example roles:
-
-```text
-ADMIN
-PROVIDER
-RENTER
-```
+Provides JWT authentication and role-based authorization.
 
 ---
 
-## GPU Node Management
+## 🖥️ GPU Node Management
+
+The system maintains information about registered GPU nodes including:
+
+* GPU model
+* VRAM
+* CUDA version
+* Driver version
+* Pricing
+* Health/status
+* Telemetry
+
+---
+
+## ⚙️ Resource Allocation Engine
 
 Responsible for:
 
-* Registering GPU nodes
-* Node health checks
-* GPU discovery
-* GPU status
-* Resource availability
-* Node heartbeat
-* GPU utilization monitoring
+* GPU availability
+* Resource allocation
+* Rental creation
+* Session state management
 
 ---
 
-## Resource Allocation Engine
+## 🐳 Provisioning Engine
 
-Responsible for deciding **which GPU resource should be assigned to a rental request**.
+Responsible for creating GPU-enabled Docker environments.
 
-Possible allocation factors:
+The system uses:
 
 ```text
-GPU model
-VRAM
-GPU availability
-CPU availability
-RAM availability
-Storage availability
-Node status
-Rental duration
-Resource utilization
+NVIDIA GPU
+     ↓
+NVIDIA Driver
+     ↓
+NVIDIA Container Toolkit
+     ↓
+Docker
+     ↓
+CUDA Container
 ```
 
 ---
 
-## Provisioning Engine
+## 📊 Telemetry
 
-The provisioning layer converts an allocated resource into a usable environment.
+The host agent periodically reports:
 
-Responsibilities may include:
+* GPU temperature
+* GPU utilization
+* VRAM usage
+* GPU power
+* CPU usage
+* RAM usage
 
-```text
-SSH user creation
-SSH key installation
-Docker container creation
-GPU assignment
-CPU limits
-Memory limits
-Storage configuration
-Environment variables
-Container lifecycle
-```
+The host heartbeat runs every **30 seconds**.
 
 ---
 
-## Rental Management
+## 💰 Wallet & Escrow Billing
 
-Manages the complete rental lifecycle:
+The platform includes:
 
-```text
-PENDING
-   ↓
-ALLOCATED
-   ↓
-PROVISIONING
-   ↓
-ACTIVE
-   ↓
-EXPIRING
-   ↓
-COMPLETED
-```
-
-Possible failure state:
-
-```text
-PROVISIONING_FAILED
-```
+* Wallet balance
+* Fund holding at session start
+* Usage-based billing
+* Host earnings
+* Host penalties
+* Refund/work protection
+* Stripe wallet top-ups
+* Transaction history
 
 ---
 
-# 🗄️ Initial Data Model
+# 🗃️ Data Model
 
-A simplified database design:
+The core system manages entities including:
 
 ```text
 User
- ├── id
- ├── email
- ├── password_hash
- └── role
+ ├── Renter
+ ├── Provider / Host
+ └── Admin
 
 GPUNode
- ├── id
- ├── hostname
- ├── ip_address
- ├── status
- └── provider_id
+ └── GPU
 
-GPU
- ├── id
- ├── node_id
- ├── model
- ├── memory
- ├── status
- └── utilization
-
-Rental
- ├── id
- ├── renter_id
- ├── gpu_id
- ├── start_time
- ├── end_time
- └── status
+Rental / Session
+ ├── Renter
+ ├── GPUNode
+ └── Billing
 
 SSHCredential
- ├── id
- ├── rental_id
- ├── username
- ├── public_key
- └── status
+ └── Rental / Session
 ```
-
-The data model will evolve as the scheduling, billing, monitoring, and isolation requirements become more sophisticated.
 
 ---
 
-# 🛠️ Technology Stack
+# 🛠️ Tech Stack
 
-| Layer             | Technology                               |
-| ----------------- | ---------------------------------------- |
-| Language          | Python                                   |
-| API               | FastAPI                                  |
-| ORM               | SQLAlchemy / SQLModel                    |
-| Database          | PostgreSQL                               |
-| Authentication    | JWT                                      |
-| Migrations        | Alembic                                  |
-| Remote Access     | OpenSSH                                  |
-| Containerization  | Docker                                   |
-| GPU Management    | NVIDIA Driver / NVIDIA Container Toolkit |
-| API Documentation | OpenAPI / Swagger                        |
-| Testing           | Pytest                                   |
-| Version Control   | Git                                      |
-| Deployment        | Linux / Docker                           |
+### Backend
+
+* Python
+* Django REST Framework
+* PostgreSQL
+* JWT Authentication
+* drf-spectacular / OpenAPI
+
+### Frontend
+
+* Next.js
+* TypeScript
+* Zustand
+* Axios
+* Sonner
+
+### Host Agent
+
+* Flutter
+* `nvidia-smi`
+* NVIDIA GPU monitoring
+* Remote command polling
+
+### GPU Infrastructure
+
+* Docker
+* NVIDIA Container Toolkit
+* NVIDIA CUDA
+* NVIDIA Drivers
+* OpenSSH
+* Linux
+
+### Payments
+
+* Stripe
+
+### Development
+
+* Git
+* GitHub
+* Swagger / OpenAPI
 
 ---
 
 # 📁 Project Structure
 
-The project is organized to keep application logic, infrastructure, and domain logic separated.
-
 ```text
-ssh-gpu-resource-provisioning/
+GPU-Renting-System/
 │
 ├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   ├── repositories/
-│   │   └── main.py
+│   └── ...
+│
+├── frontend/
+│   └── ...
+│
+├── host-agent/
+│   └── ...
+│
+├── docker/
+│   └── ...
+│
+├── assets/
+│   ├── screenshots/
+│   │   ├── host-dashboard.png
+│   │   └── started-session.png
 │   │
-│   └── tests/
-│
-├── infrastructure/
-│   ├── docker/
-│   ├── scripts/
-│   └── gpu-node/
-│
-├── docs/
 │   ├── architecture/
-│   ├── api/
-│   └── decisions/
+│   │   └── system-architecture.png
+│   │
+│   └── demos/
+│       └── gpu-session-demo.gif
 │
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── README.md
-└── LICENSE
+└── README.md
 ```
 
 ---
 
+# 🚧 Future Development
 
+The following components are planned for continuation:
 
+* Production relay server
+* Reliable SSH reverse tunneling
+* NAT traversal
+* Automated background workers
+* Session timeout and cleanup
+* Dead-host detection
+* Automatic refund handling
+* Relay port lifecycle management
+* In-browser terminal using WebSockets
+* Distributed GPU node deployment
+* Multi-host production testing
+* Production deployment
+
+---
+
+# 📌 Current State
+
+The project demonstrates the implementation of the **core GPU rental platform**, including backend services, renter interface, host management, GPU detection, Docker-based GPU provisioning, session lifecycle management, telemetry, and billing.
+
+The project is currently **paused due to infrastructure constraints surrounding the production relay and reverse-tunneling layer**.
+
+This repository is being preserved as a record of the implemented system and will serve as the foundation for continuing development when the required infrastructure becomes available.
+
+---
+
+# 👨‍💻 Author
+
+**Mandeep Pokharel**
+
+BSc CSIT Student | Software Developer | Aviation & ML Enthusiast
+
+---
+
+# ⭐ Project Note
+
+This project was developed as a practical exploration of:
+
+* GPU resource sharing
+* Cloud infrastructure
+* Linux networking
+* Docker GPU isolation
+* SSH-based remote access
+* Resource allocation
+* Usage-based billing
+* Distributed systems
+
+The project is **paused, not abandoned**.
