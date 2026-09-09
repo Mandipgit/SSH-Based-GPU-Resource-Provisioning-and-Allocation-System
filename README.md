@@ -60,9 +60,8 @@ The following screenshots demonstrate the implemented system:
 <img width="1892" height="1044" alt="Screenshot 2026-09-06 212745" src="https://github.com/user-attachments/assets/afa20d7a-9d89-4df0-aabf-8d3c8b0b28da" />
 
 
-![Started GPU Session](./assets/screenshots/started-session.png)
 
-*Started rental session demonstrating the implemented session provisioning workflow.*
+*Started rental session demonstrating the implemented session.*
 
 > **Note:** The screenshots above are included as implementation evidence. The remaining production blocker was the reliable external connection through the relay/reverse-tunneling layer.
 
